@@ -91,7 +91,7 @@ class App(object):
             _logger.warning('auth_token not configured. Retry after 2s')
             time.sleep(2)
 
-        _logger.info(f'starting moonraker-obico (v{VERSION})')
+        _logger.info(f'starting reprapfirmware-obico (v{VERSION})')
         _logger.info('Fetching linked printer...')
         linked_printer = ServerConn(config, None, None, None).get_linked_printer()
         _logger.info('Linked printer: {}'.format(linked_printer))

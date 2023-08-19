@@ -10,9 +10,9 @@ cyan=$(echo -en "\e[96m")
 default=$(echo -en "\e[39m")
 
 ensure_venv() {
-  OBICO_ENV="${HOME}/moonraker-obico-env"
+  OBICO_ENV="${HOME}/reprapfirmware-obico-env"
   if [ ! -f "${OBICO_ENV}/bin/activate" ] ; then
-    report_status "Creating python virtual environment for moonraker-obico..."
+    report_status "Creating python virtual environment for reprapfirmware-obico..."
     mkdir -p "${OBICO_ENV}"
     virtualenv -p /usr/bin/python3 --system-site-packages "${OBICO_ENV}"
   fi

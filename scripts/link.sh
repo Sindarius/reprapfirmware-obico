@@ -41,8 +41,8 @@ EOF
 
   export OBICO_ENV # Expose OBICO_ENV to link.py so that it can print out the debugging command.
 
-  debug Running... PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m reprapfirmware.link -c "${OBICO_CFG_FILE}"
-  PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m reprapfirmware.link -c "${OBICO_CFG_FILE}"
+  debug Running... PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m reprapfirmware_obico.link -c "${OBICO_CFG_FILE}"
+  PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m reprapfirmware_obico.link -c "${OBICO_CFG_FILE}"
   return $?
 }
 
@@ -52,7 +52,7 @@ success() {
   echo -e "\n"
   print_header "="
   echo -n "${cyan}"
-  array=("" "SUCCESS!!!" "Now enjoy Obico for Klipper!" "")
+  array=("" "SUCCESS!!!" "Now enjoy Obico for RepRapFirmware!" "")
   print_centered_lines "${array[@]}"
   print_header "="
 
@@ -68,7 +68,7 @@ The changes we have made to your system:
 
 To remove Obico for Klipper, run:
 
-cd ~/moonraker-obico
+cd ~/reprapfirmware-obico
 ./install.sh -u
 
 EOF
@@ -84,7 +84,7 @@ ${default}
 To resume the linking process at a later time, run:
 
 -------------------------------------------------------------------------------------------------
-cd ~/moonraker-obico
+cd ~/reprapfirmware-obico
 ./install.sh
 -------------------------------------------------------------------------------------------------
 
@@ -120,9 +120,9 @@ while getopts "hqc:n:d" arg; do
 done
 
 if [ -z "${SUFFIX}" ] || [ "${SUFFIX}" == '-' ]; then
-  OBICO_SERVICE_NAME="moonraker-obico"
+  OBICO_SERVICE_NAME="reprapfirmware-obico"
 else
-  OBICO_SERVICE_NAME="moonraker-obico${SUFFIX}"
+  OBICO_SERVICE_NAME="reprapfirmware-obico${SUFFIX}"
 fi
 
 if [ -z "${OBICO_CFG_FILE}" ]; then

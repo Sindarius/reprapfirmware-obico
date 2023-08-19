@@ -42,7 +42,7 @@ to make sure everything looks correct.
 
 To remove Obico for Klipper, run:
 
-cd ~/moonraker-obico
+cd ~/reprapfirmware-obico
 ./install.sh -u
 
 EOF

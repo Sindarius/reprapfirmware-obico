@@ -1,10 +1,10 @@
-[update_manager moonraker-obico]
+[update_manager reprapfirmware-obico]
 type: git_repo
-path: ~/moonraker-obico
-origin: https://github.com/TheSpaghettiDetective/moonraker-obico.git
-env: ~/moonraker-obico-env/bin/python
+path: ~/reprapfirmware-obico
+origin: https://github.com/sindarius/reprapfirmware-obico.git
+env: ~/reprapfirmware-obico-env/bin/python
 requirements: requirements.txt
 install_script: install.sh
 managed_services:
-  moonraker-obico
+  reprapfirmware-obico
 

@@ -49,7 +49,7 @@ def cpu_watch_dog(watched_process, max, interval, server_conn):
             cpu_pct = watched_process.cpu_percent(interval=None)
             if cpu_pct > max:
                 server_conn.post_printer_event_to_server(
-                    'moonraker-obico: Webcam Streaming Using Excessive CPU',
+                    'reprapfirmware-obico: Webcam Streaming Using Excessive CPU',
                     'The webcam streaming uses excessive CPU. This may negatively impact your print quality, or cause webcam streaming issues.',
                     event_class='WARNING',
                     info_url='https://obico.io/docs/user-guides/webcam-streaming-resolution-framerate-klipper/',
@@ -85,7 +85,7 @@ class WebcamStreamer:
         except Exception:
             self.sentry.captureException()
             self.server_conn.post_printer_event_to_server(
-                'moonraker-obico: Webcam Streaming Failed',
+                'reprapfirmware-obico: Webcam Streaming Failed',
                 'The webcam streaming failed to start. Obico is now streaming at 0.1 FPS.',
                 event_class='WARNING',
                 info_url='https://www.obico.io/docs/user-guides/webcam-stream-stuck-at-1-10-fps/',
