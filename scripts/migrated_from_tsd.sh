@@ -30,7 +30,7 @@ EOF
 ===================================================================================================
 ###                                                                                             ###
 ###                                      SUCCESS!!!                                             ###
-###                            Now enjoy Obico for Klipper!                                     ###
+###                            Now enjoy Obico for RepRapFirmware!                              ###
 ###                                                                                             ###
 ===================================================================================================
 
@@ -40,7 +40,7 @@ successfully migrated to Obico.
 Now log into the Obico web app (https://app.obico.io) or mobile app
 to make sure everything looks correct.
 
-To remove Obico for Klipper, run:
+To remove Obico for RepRapFirmware, run:
 
 cd ~/reprapfirmware-obico
 ./install.sh -u
