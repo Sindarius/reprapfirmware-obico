@@ -2,7 +2,7 @@ from reprapfirmware_connection_base import RepRapFirmware_Connection_Base
 from typing import Optional, Dict, List, Tuple
 from numbers import Number
 import json
-from config import Config, RepRapFirmwareConfig
+from .config import Config, RepRapFirmwareConfig
 import threading
 
 class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):

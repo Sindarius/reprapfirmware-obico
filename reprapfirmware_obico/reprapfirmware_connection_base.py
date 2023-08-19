@@ -1,6 +1,7 @@
 from typing import Optional, Dict, List, Tuple
 from numbers import Number
 from abc import ABC, abstractmethod
+import dataclasses
 
 class RepRapFirmware_Connection_Base(ABC):
     @abstractmethod
@@ -43,5 +44,29 @@ class RepRapFirmware_Connection_Base(ABC):
     def start_print(self, filename: str):
         pass
 
+    @abstractmethod
     def pause_print(self):
         pass
+
+    @abstractmethod
+    def resume_print(self):
+        pass
+
+    @abstractmethod
+    def cancel_print(self):
+        pass
+
+    @abstractmethod
+    def pause_print(self):
+        pass
+
+    @abstractmethod
+    def request_set_temperature(self):
+        pass
+
+
+@dataclasses.dataclass
+class Event:
+    name: str
+    data: Dict
+    sender: Optional[str] = None

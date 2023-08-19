@@ -22,12 +22,11 @@ from .webcam_capture import JpegPoster
 from .logger import setup_logging
 from .printer import PrinterState
 from .config import MoonrakerConfig, ServerConfig, Config
-from .moonraker_conn import MoonrakerConn, Event
 from .server_conn import ServerConn
 from .janus import JanusConn
 from .tunnel import LocalTunnel
 from .passthru_targets import FileDownloader, Printer, MoonrakerApi, FileOperations
-
+from  .reprapfirmware_connection_factory import get_connection
 
 _logger = logging.getLogger('obico.app')
 _default_int_handler = None
@@ -54,7 +53,7 @@ class App(object):
         self.model = None
         self.sentry = None
         self.server_conn = None
-        self.moonrakerconn = None
+        self.rrfconn = None
         self.jpeg_poster = None
         self.janus = None
         self.local_tunnel = None
@@ -116,8 +115,8 @@ class App(object):
         self.wait_for_auth_token(args)
 
         _cfg = self.model.config._config
-        _logger.debug(f'moonraker-obico configurations: { {section: dict(_cfg[section]) for section in _cfg.sections()} }')
-        self.moonrakerconn = MoonrakerConn(self.model.config, self.sentry, self.push_event,)
+        _logger.debug(f'reprapfirmware-obico configurations: { {section: dict(_cfg[section]) for section in _cfg.sections()} }')
+        self.rrfconn = get_connection(self.model.config, self.push_event)
         self.server_conn = ServerConn(self.model.config, self.model.printer_state, self.process_server_msg, self.sentry)
         self.janus = JanusConn(self.model, self.server_conn, self.sentry)
         self.jpeg_poster = JpegPoster(self.model, self.server_conn, self.sentry)
@@ -171,8 +170,8 @@ class App(object):
         self.shutdown = True
         if self.server_conn:
             self.server_conn.close()
-        if self.moonrakerconn:
-            self.moonrakerconn.close()
+        if self.rrfconn:
+            self.rrfconn.close()
         if self.janus:
             self.janus.shutdown()
 

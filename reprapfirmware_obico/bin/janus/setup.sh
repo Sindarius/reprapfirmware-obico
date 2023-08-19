@@ -2,6 +2,8 @@
 
 set -e
 
+AUTH_TOKEN=829732
+VIDEO_ENABLED="y"
 JANUS_ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 RUNTIME_JANUS_ETC_DIR="${JANUS_ROOT_DIR}/runtime/etc/janus"
 TPL_JANUS_ETC_DIR="${JANUS_ROOT_DIR}/templates/etc/janus"
@@ -11,7 +13,11 @@ USE_RTSP="n"
 
 mkdir -p "${RUNTIME_JANUS_ETC_DIR}"
 
-PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/debian.$( debian_variant )"
+#Debian
+#PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/debian.$( debian_variant )"
+
+#Ubuntu
+PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/ubuntu.18.04"
 
 precompiled_janus_jcfg_folders_section() {
   lib_janus_dir="${PRECOMPILED_DIR}/lib/janus"

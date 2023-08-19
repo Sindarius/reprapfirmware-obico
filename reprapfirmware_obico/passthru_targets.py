@@ -6,6 +6,7 @@ import time
 import threading
 import io
 import pathlib
+from .reprapfirmware_connection_base import RepRapFirmware_Connection_Base
 
 from .utils import sanitize_filename
 from .state_transition import call_func_with_state_transition
@@ -17,9 +18,9 @@ MAX_GCODE_DOWNLOAD_SECONDS = 10 * 60
 
 class FileDownloader:
 
-    def __init__(self, model, moonrakerconn, server_conn, sentry):
+    def __init__(self, model, rrfconn: RepRapFirmware_Connection_Base, server_conn, sentry):
         self.model = model
-        self.moonrakerconn = moonrakerconn
+        self.rrfconn = rrfconn
         self.server_conn = server_conn
         self.sentry = sentry
 
@@ -75,31 +76,33 @@ class FileDownloader:
 
 class Printer:
 
-    def __init__(self, model, moonrakerconn, server_conn):
+    def __init__(self, model, rrfconn: RepRapFirmware_Connection_Base, server_conn):
         self.model = model
-        self.moonrakerconn = moonrakerconn
+        self.rrfconn = rrfconn
         self.server_conn = server_conn
 
     def call_printer_api_with_state_transition(self, printer_action, transient_state, timeout=5*60):
 
         def _call_printer_api():
-            resp_data = self.moonrakerconn.api_post(f'printer/print/{printer_action}', timeout=timeout)
+            resp_data = printer_action()
 
         call_func_with_state_transition(self.server_conn, self.model.printer_state, transient_state, _call_printer_api, timeout=timeout)
 
     def resume(self):
-        self.call_printer_api_with_state_transition('resume', self.model.printer_state.STATE_RESUMING)
+        self.call_printer_api_with_state_transition(self.rrfconn.resume_print, self.model.printer_state.STATE_RESUMING)
 
     def cancel(self):
-        self.call_printer_api_with_state_transition('cancel', self.model.printer_state.STATE_CANCELLING)
+        self.call_printer_api_with_state_transition(self.rrfconn.cancel_print, self.model.printer_state.STATE_CANCELLING)
 
     def pause(self):
-        self.call_printer_api_with_state_transition('pause', self.model.printer_state.STATE_PAUSING)
+        self.call_printer_api_with_state_transition(self.rrfconn.pause_print, self.model.printer_state.STATE_PAUSING)
 
     def jog(self, axes_dict) -> None:
-        if not self.moonrakerconn:
+        if not self.rrfconn:
             return None, 'Printer is not connected!'
 
+
+    #TODO - Fix this to use RRF model
         gcode_move = self.model.printer_state.status['gcode_move']
         is_relative = not gcode_move['absolute_coordinates']
         has_z = 'z' in {axis.lower() for axis in axes_dict.keys()}
@@ -115,14 +118,14 @@ class Printer:
         return None, None
 
     def home(self, axes) -> None:
-        if not self.moonrakerconn:
+        if not self.rrfconn:
             return None, 'Printer is not connected!'
 
-        self.moonrakerconn.request_home(axes=axes)
+        self.rrfconn.request_home(axes=axes)
         return None, None
 
     def set_temperature(self, heater, target_temp) -> None:
-        if not self.moonrakerconn:
+        if not self.rrfconn:
             return None, 'Printer is not connected!'
 
         mr_heater = self.model.config.get_mapped_mr_heater_name(heater)
@@ -174,9 +177,9 @@ class MoonrakerApi:
             return ret_value, error
 
 class FileOperations:
-    def __init__(self, model, moonrakerconn, sentry ):
+    def __init__(self, model, rrfconn: RepRapFirmware_Connection_Base, sentry ):
         self.model = model
-        self.moonrakerconn = moonrakerconn
+        self.rrfconn = rrfconn
         self.sentry = sentry
 
 
@@ -193,7 +196,7 @@ class FileOperations:
     def start_printer_local_print(self, file_to_print):
         if not self.moonrakerconn:
             return None, 'Printer is not connected!'
-        
+
         ret_value = None
         error = None
         filepath = file_to_print['url']
