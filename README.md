@@ -39,7 +39,7 @@ This is a RepRapFirmware plugin that enables the RepRapFirmware-based 3D printer
     cp moonraker-obico.cfg.sample moonraker-obico.cfg
 
     # link printer (grab Obico auth token)
-    python3 -m moonraker_obico.link -c moonraker-obico.cfg
+    python3 -m reprapfirmware.link -c moonraker-obico.cfg
 
     # start app
-    python3 -m moonraker_obico.app -c moonraker-obico.cfg
+    python3 -m reprapfirmware.app -c moonraker-obico.cfg

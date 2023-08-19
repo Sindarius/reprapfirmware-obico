@@ -19,14 +19,14 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         self.currentThread = None
         self.on_event = on_event
         self.shutdown: bool = False
-        _logger.log('rrf.http init')
+        _logger.info('rrf.http init')
         return
 
     def find_all_heaters(self):
         json_response = self.api_get('/rr_model?key=state')
         rrf_heater_state = json.loads(json_response)
         for heaterIdx in  rrf_heater_state.bedHeaters:
-            _logger.log(heaterIdx)
+            _logger.info(heaterIdx)
         return
 
     def find_all_thermal_presets(self):
@@ -58,7 +58,7 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
     def request_status_update(self) -> None:
         json_response = self.api_get('/rr_model?key=state')
         rrf_state = json.loads(json_response)
-        _logger.log(rrf_state)
+        _logger.info(rrf_state)
         self.on_event(name='status', sender=self, data=rrf_state)
 
     def request_jog(self, axes_dict: Dict[str, Number], is_relative: bool, feedrate: int) -> Dict:
@@ -72,3 +72,18 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         resp = requests.get(url, timeout=timeout)
         return resp.json()
 
+    def start_print(self, filename: str):
+        _logger.info(f'Starting Print {filename}')
+        return
+
+    def pause_print(self):
+        return
+
+    def resume_print(self):
+        return
+
+    def cancel_print(self):
+        return
+
+    def request_set_temperature(self):
+        return

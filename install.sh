@@ -24,22 +24,22 @@ usage() {
     echo ""
   fi
   cat <<EOF
-Usage: $0 <[global_options]>   # Interactive installation to get moonraker-obico set up. Recommended if you have only 1 printer
+Usage: $0 <[global_options]>   # Interactive installation to get reprapfirmware-obico set up. Recommended if you have only 1 printer
        $0 <[global_options]> <[moonraker_setting_options]>   # Recommended for multiple-printer setup
 
 Global options:
-          -f   Reset moonraker-obico config file, including removing the linked printer
+          -f   Reset reprapfirmware-obico config file, including removing the linked printer
           -L   Skip the step to link to the Obico server.
           -u   Show uninstallation instructions
           -d   Show debugging info
-          -U   Update moonraker-obico to the latest version
+          -U   Update reprapfirmware-obico to the latest version
 
 Moonraker setting options (${yellow}if any of them are specified, all need to be specified${default}):
           -n   The "name" that will be appended to the end of the system service name and log file. Useful only in multi-printer setup.
           -H   Moonraker server hostname or ip address
           -p   Moonraker server port
           -C   Moonraker config file path
-          -l   The directory for moonraker-obico log files, which are rotated based on size.
+          -l   The directory for reprapfirmware-obico log files, which are rotated based on size.
           -S   The URL of the obico server to link the printer to, e.g., https://app.obico.io
 EOF
 }
@@ -176,9 +176,9 @@ EOF
 recreate_service() {
   sudo systemctl stop "${OBICO_SERVICE_NAME}" 2>/dev/null || true
 
-  report_status "Creating moonraker-obico systemctl service... You may need to enter password to run sudo."
+  report_status "Creating reprapfirmware-obico systemctl service... You may need to enter password to run sudo."
   sudo /bin/sh -c "cat > /etc/systemd/system/${OBICO_SERVICE_NAME}.service" <<EOF
-#Systemd service file for moonraker-obico
+#Systemd service file for reprapfirmware-obico
 [Unit]
 Description=Obico for Moonraker
 After=network-online.target moonraker.service
@@ -190,7 +190,7 @@ WantedBy=multi-user.target
 Type=simple
 User=${CURRENT_USER}
 WorkingDirectory=${OBICO_DIR}
-ExecStart=${OBICO_ENV}/bin/python3 -m moonraker_obico.app -c ${OBICO_CFG_FILE}
+ExecStart=${OBICO_ENV}/bin/python3 -m reprapfirmware_obico.app -c ${OBICO_CFG_FILE}
 Restart=always
 RestartSec=5
 EOF
@@ -205,7 +205,7 @@ recreate_update_file() {
   cat <<EOF > "${OBICO_UPDATE_FILE}"
 [update_manager ${OBICO_SERVICE_NAME}]
 type: git_repo
-path: ~/moonraker-obico
+path: ~/reprapfirmware-obico
 origin: ${OBICO_REPO}
 env: ${OBICO_ENV}/bin/python
 requirements: requirements.txt
@@ -214,9 +214,9 @@ managed_services:
   ${OBICO_SERVICE_NAME}
 EOF
 
-  if ! grep -q "include moonraker-obico-update.cfg" "${MOONRAKER_CONFIG_FILE}" ; then
+  if ! grep -q "include reprapfirmware-obico-update.cfg" "${MOONRAKER_CONFIG_FILE}" ; then
     echo "" >> "${MOONRAKER_CONFIG_FILE}"
-    echo "[include moonraker-obico-update.cfg]" >> "${MOONRAKER_CONFIG_FILE}"
+    echo "[include reprapfirmware-obico-update.cfg]" >> "${MOONRAKER_CONFIG_FILE}"
 	fi
 }
 
@@ -237,7 +237,7 @@ ${red}${1}${default}
 Please fix the error above and re-run this setup script:
 
 -------------------------------------------------------------------------------------------------
-cd ~/moonraker-obico
+cd ~/reprapfirmware-obico
 ./install.sh
 -------------------------------------------------------------------------------------------------
 
@@ -260,8 +260,8 @@ sudo systemctl disable "${OBICO_SERVICE_NAME}"
 sudo rm "/etc/systemd/system/${OBICO_SERVICE_NAME}.service"
 sudo systemctl daemon-reload
 sudo systemctl reset-failed
-rm -rf ~/moonraker-obico
-rm -rf ~/moonraker-obico-env
+rm -rf ~/reprapfirmware-obico
+rm -rf ~/reprapfirmware-obico-env
 
 EOF
 
@@ -331,11 +331,11 @@ ensure_writtable "${MOONRAKER_CONF_DIR}"
 ensure_writtable "${MOONRAKER_CONFIG_FILE}"
 ensure_writtable "${MOONRAKER_LOG_DIR}"
 
-[ -z "${OBICO_CFG_FILE}" ] && OBICO_CFG_FILE="${MOONRAKER_CONF_DIR}/moonraker-obico.cfg"
-OBICO_UPDATE_FILE="${MOONRAKER_CONF_DIR}/moonraker-obico-update.cfg"
-OBICO_LOG_FILE="${MOONRAKER_LOG_DIR}/moonraker-obico.log"
-OBICO_SERVICE_NAME="moonraker-obico${SUFFIX}"
-OBICO_LOG_FILE="${MOONRAKER_LOG_DIR}/moonraker-obico${SUFFIX}.log"
+[ -z "${OBICO_CFG_FILE}" ] && OBICO_CFG_FILE="${MOONRAKER_CONF_DIR}/reprapfirmware-obico.cfg"
+OBICO_UPDATE_FILE="${MOONRAKER_CONF_DIR}/reprapfirmware-obico-update.cfg"
+OBICO_LOG_FILE="${MOONRAKER_LOG_DIR}/reprapfirmware-obico.log"
+OBICO_SERVICE_NAME="reprapfirmware-obico${SUFFIX}"
+OBICO_LOG_FILE="${MOONRAKER_LOG_DIR}/reprapfirmware-obico${SUFFIX}.log"
 
 if ! cfg_existed ; then
   create_config

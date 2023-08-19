@@ -88,7 +88,7 @@ class JanusConn:
             except Exception as ex:
                 self.sentry.captureException()
                 self.server_conn.post_printer_event_to_server(
-                    'moonraker-obico: Webcam Streaming Failed',
+                    'reprapfirmware-obico: Webcam Streaming Failed',
                     'The webcam streaming failed to start. Obico is now streaming at 0.1 FPS.',
                     event_class='WARNING',
                     info_url='https://www.obico.io/docs/user-guides/webcam-stream-stuck-at-1-10-fps/',

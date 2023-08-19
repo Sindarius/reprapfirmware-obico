@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/home/pi/moonraker-obico/moonraker_obico/bin/janus/precomplied/debian.11.aarch64/lib/janus/transports'
+libdir='/home/pi/moonraker-obico/reprapfirmware_obico/bin/janus/precomplied/debian.11.aarch64/lib/janus/transports'

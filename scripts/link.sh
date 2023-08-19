@@ -41,8 +41,8 @@ EOF
 
   export OBICO_ENV # Expose OBICO_ENV to link.py so that it can print out the debugging command.
 
-  debug Running... PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m moonraker_obico.link -c "${OBICO_CFG_FILE}"
-  PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m moonraker_obico.link -c "${OBICO_CFG_FILE}"
+  debug Running... PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m reprapfirmware.link -c "${OBICO_CFG_FILE}"
+  PYTHONPATH="${OBICO_DIR}:${PYTHONPATH}" ${OBICO_ENV}/bin/python3 -m reprapfirmware.link -c "${OBICO_CFG_FILE}"
   return $?
 }
 

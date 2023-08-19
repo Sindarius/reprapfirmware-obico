@@ -57,10 +57,6 @@ class RepRapFirmware_Connection_Base(ABC):
         pass
 
     @abstractmethod
-    def pause_print(self):
-        pass
-
-    @abstractmethod
     def request_set_temperature(self):
         pass
 
