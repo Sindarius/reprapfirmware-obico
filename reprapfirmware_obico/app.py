@@ -120,10 +120,10 @@ class App(object):
         self.server_conn = ServerConn(self.model.config, self.model.printer_state, self.process_server_msg, self.sentry)
         self.janus = JanusConn(self.model, self.server_conn, self.sentry)
         self.jpeg_poster = JpegPoster(self.model, self.server_conn, self.sentry)
-        self.target_file_downloader = FileDownloader(self.model, self.moonrakerconn, self.server_conn, self.sentry)
-        self.target__printer = Printer(self.model, self.moonrakerconn, self.server_conn)
-        self.target_moonraker_api = MoonrakerApi(self.model, self.moonrakerconn, self.sentry)
-        self.target_file_operations = FileOperations(self.model, self.moonrakerconn, self.sentry)
+        self.target_file_downloader = FileDownloader(self.model, self.rrfconn, self.server_conn, self.sentry)
+        self.target__printer = Printer(self.model, self.rrfconn, self.server_conn)
+        self.target_moonraker_api = MoonrakerApi(self.model, self.rrfconn, self.sentry)
+        self.target_file_operations = FileOperations(self.model, self.rrfconn, self.sentry)
 
         self.local_tunnel = LocalTunnel(
             tunnel_config=self.model.config.tunnel,
@@ -131,15 +131,15 @@ class App(object):
             on_ws_message=self.server_conn.send_ws_msg_to_server,
             sentry=self.sentry)
 
-        self.moonrakerconn.update_webcam_config_from_moonraker()
-        self.model.printer_state.thermal_presets = self.moonrakerconn.find_all_thermal_presets()
-        self.model.printer_state.installed_plugins = self.moonrakerconn.find_all_installed_plugins()
+        #self.rrfconn.update_webcam_config_from_moonraker()
+        self.model.printer_state.thermal_presets = self.rrfconn.find_all_thermal_presets()
+        #self.model.printer_state.installed_plugins = self.rrfconn.find_all_installed_plugins()
 
         thread = threading.Thread(target=self.server_conn.start)
         thread.daemon = True
         thread.start()
 
-        thread = threading.Thread(target=self.moonrakerconn.start)
+        thread = threading.Thread(target=self.rrfconn.start)
         thread.daemon = True
         thread.start()
 
@@ -202,19 +202,21 @@ class App(object):
                 self.sentry.captureException(msg=f'error processing event {event}')
 
     def _process_event(self, event):
+        #_logger.info(event)
         if event.name == 'fatal_error':
             self.stop(cause=event.data.get('exc'))
 
         elif event.name == 'shutdown':
             self.stop()
 
-        elif event.sender == 'moonrakerconn':
-            self._on_moonrakerconn_event(event)
+        elif event.sender == 'rrfconn':
+            self._on_rrfconn_event(event)
 
-    def _on_moonrakerconn_event(self, event):
+    def _on_rrfconn_event(self, event):
+        # _logger.info("App : RRFCONN EVENT")
         if event.name == 'mr_disconnected':
-            # clear app's klippy state to indicate the loss of connection to Moonraker
-            self._received_klippy_update({"status": {},})
+            # clear app's rrf state to indicate the loss of connection to RRF
+            self._received_rrf_update({"status": {}, })
 
         elif event.name == 'message':
             if 'error' in event.data:
@@ -224,19 +226,19 @@ class App(object):
                 # Click "Restart Klipper" or "Firmware restart" (same result) -> notify_klippy_disconnected
                 # Unplug printer USB cable -> notify_klippy_shutdown
                 # clear app's klippy state to indicate the loss of connection to the printer
-                self._received_klippy_update({"status": {},})
+                self._received_rrf_update({"status": {}, })
 
             elif event.data.get('result') == 'ok':
                 # printer action response
-                self.moonrakerconn.request_status_update()
+                self.rrfconn.request_status_update()
 
             elif event.data.get('method', '') == 'notify_status_update':
                 # something important has changed,
                 # fetching full status
-                self.moonrakerconn.request_status_update()
+                self.rrfconn.request_status_update()
 
             elif event.data.get('method', '') == 'notify_history_changed':
-                self.moonrakerconn.request_status_update()
+                self.rrfconn.request_status_update()
 
             elif event.data.get('method', '') == 'notify_gcode_response':
                 msg = (event.data.get('params') or [''])[0]
@@ -248,13 +250,13 @@ class App(object):
                     self.server_conn.send_ws_msg_to_server({'passthru': {'terminal_feed': {'msg': readable_msg,'_ts': time.time()}}})
 
         elif event.name == 'status_update':
-            # full state update from moonraker
-            self._received_klippy_update(event.data['result'])
+            # full state update from RRF
+            self._received_rrf_update(event.data['result'])
 
     def set_current_print(self, printer_state):
 
         def find_current_print_ts():
-            cur_job = self.moonrakerconn.find_most_recent_job()
+            cur_job = self.rrfconn.find_most_recent_job()
             if cur_job:
                 return int(cur_job.get('start_time', '0'))
             else:
@@ -264,7 +266,7 @@ class App(object):
         printer_state.set_current_print_ts(find_current_print_ts())
 
         filename = printer_state.status.get('print_stats', {}).get('filename')
-        file_metadata = self.moonrakerconn.api_get('server/files/metadata', raise_for_status=True, filename=filename)
+        file_metadata = self.rrfconn.api_get('server/files/metadata', raise_for_status=True, filename=filename)
         printer_state.current_file_metadata = file_metadata
 
         # So that Obico server can associate the current print with a gcodefile record in the DB
@@ -298,10 +300,10 @@ class App(object):
         self.server_conn.post_status_update_to_server(print_event=print_event)
 
 
-    def _received_klippy_update(self, data):
+    def _received_rrf_update(self, data):
         printer_state = self.model.printer_state
 
-        prev_status = printer_state.update_status(data['status'])
+        prev_status = printer_state.update_status(data)
 
         prev_state = PrinterState.get_state_from_status(prev_status)
         cur_state = PrinterState.get_state_from_status(printer_state.status)

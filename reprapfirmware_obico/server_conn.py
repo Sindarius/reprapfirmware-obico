@@ -123,6 +123,7 @@ class ServerConn:
             except Exception as e:
                 _logger.warn('Failed to capture jpeg - ' + str(e))
                 pass
+        #_logger.info(event_data)
         resp = self.send_http_request('POST', '/api/v1/octo/printer_events/', timeout=60, raise_exception=True, files=files, data=event_data)
 
 

@@ -94,6 +94,7 @@ class WebcamStreamer:
 
     def ffmpeg_from_mjpeg(self):
 
+
         @backoff.on_exception(backoff.expo, Exception, max_tries=20)  # Retry 20 times in case the webcam service starts later than Obico service
         def get_webcam_resolution(webcam_config):
             return get_image_info(capture_jpeg(webcam_config, force_stream_url=True))
@@ -131,6 +132,7 @@ class WebcamStreamer:
 
         webcam_config = self.config.webcam
         stream_url = webcam_config.stream_url
+
         if not stream_url:
             raise Exception('stream_url not configured. Unable to stream the webcam.')
 

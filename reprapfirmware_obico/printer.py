@@ -7,7 +7,11 @@ import pathlib
 
 from .config import Config
 from .version import VERSION
-from .utils import  sanitize_filename
+from .utils import sanitize_filename
+import logging
+
+_logger = logging.getLogger('obico.printer')
+
 
 class PrinterState:
     STATE_OFFLINE = 'Offline'
@@ -77,22 +81,15 @@ class PrinterState:
 
     @classmethod
     def get_state_from_status(cls, data: Dict) -> str:
-        klippy_state = data.get(
-            'webhooks', {}
-        ).get('state', 'disconnected')
-
-        # TODO: We need to have better understanding on the webhooks.state.
-        if klippy_state != 'ready':
-            return PrinterState.STATE_OFFLINE
-
         return {
-            'standby': PrinterState.STATE_OPERATIONAL,
+            'idle': PrinterState.STATE_OPERATIONAL,
             'printing': PrinterState.STATE_PRINTING,
             'paused': PrinterState.STATE_PAUSED,
-            'complete': PrinterState.STATE_OPERATIONAL,
-            'cancelled': PrinterState.STATE_OPERATIONAL,
-            'error': PrinterState.STATE_OPERATIONAL, # state is "error" when printer quits a print due to an error, but operational
-        }.get(data.get('print_stats', {}).get('state', 'unknown'), PrinterState.STATE_OFFLINE)
+            'error': PrinterState.STATE_OPERATIONAL,
+            # state is "error" when printer quits a print due to an error, but operational
+            'simulating': PrinterState.STATE_PRINTING,
+            'busy': PrinterState.STATE_OPERATIONAL
+        }.get(data.get('status', 'unknown'), PrinterState.STATE_OFFLINE)
 
     def to_dict(
         self, print_event: Optional[str] = None, with_config: Optional[bool] = False
@@ -101,7 +98,7 @@ class PrinterState:
             data = {
                 'current_print_ts': self.current_print_ts,
                 'status': self.to_status(),
-            } if self.current_print_ts is not None else {}      # Print status is un-deterministic when current_print_ts is None
+            } if self.current_print_ts is not None else {}  # Print status is un-deterministic when current_print_ts is None
 
             if print_event:
                 data['event'] = {'event_type': print_event}
@@ -138,11 +135,13 @@ class PrinterState:
             if self.transient_state is not None:
                 state = self.transient_state
 
-            print_stats = self.status.get('print_stats') or dict()
-            virtual_sdcard = self.status.get('virtual_sdcard') or dict()
-            has_error = self.status.get('print_stats', {}).get('state', '') == 'error'
-            fan = self.status.get('fan') or dict()
-            gcode_move = self.status.get('gcode_move') or dict()
+            job = self.status.get('job') or dict()
+
+            #            print_stats = self.status.get('print_stats') or dict()
+            #            virtual_sdcard = self.status.get('virtual_sdcard') or dict()
+            has_error = ''  # self.status.get('print_stats', {}).get('state', '') == 'error'
+            #            fan = self.status.get('fan') or dict()
+            #            gcode_move = self.status.get('gcode_move') or dict()
 
             temps = {}
             for heater in self.app_config.all_mr_heaters():
@@ -151,10 +150,11 @@ class PrinterState:
                 temps[self.app_config.get_mapped_server_heater_name(heater)] = {
                     'actual': round(data.get('temperature', 0.), 2),
                     'offset': 0,
-                    'target': data.get('target'), # "target = null" indicates this is a sensor, not a heater, and hence temperature can't be set
+                    'target': data.get('target'),
+                    # "target = null" indicates this is a sensor, not a heater, and hence temperature can't be set
                 }
 
-            filepath = print_stats.get('filename')
+            filepath = job['file']['fileName'] if job else None   # print_stats.get('filename')
             filename = pathlib.Path(filepath).name if filepath else None
             file_display_name = sanitize_filename(filename) if filename else None
 
@@ -175,9 +175,10 @@ class PrinterState:
                         'pausing': False,
                         'error': has_error,
                         'ready': state == PrinterState.STATE_OPERATIONAL,
-                        'closedOrError': False,  # OctoPrint uses this flag to indicate the printer is connectable. It should always be false until we support connecting moonraker to printer
+                        'closedOrError': False,
+                        # OctoPrint uses this flag to indicate the printer is connectable. It should always be false until we support connecting moonraker to printer
                     },
-                    'error': print_stats.get('message') if has_error else None
+                    'error': ''  # print_stats.get('message') if has_error else None
                 },
                 'currentZ': None,
                 'job': {
@@ -192,10 +193,10 @@ class PrinterState:
                 },
                 'progress': {
                     'completion': completion * 100,
-                    'filepos': virtual_sdcard.get('file_position', 0),
+                    'filepos': 0,  # virtual_sdcard.get('file_position', 0),
                     'printTime': print_time,
                     'printTimeLeft': print_time_left,
-                    'filamentUsed': print_stats.get('filament_used')
+                    'filamentUsed': 0  # print_stats.get('filament_used')
                 },
                 'temperatures': temps,
                 'file_metadata': {
@@ -209,9 +210,9 @@ class PrinterState:
                     }
                 },
                 'currentLayerHeight': current_layer,
-                'currentFeedRate': gcode_move.get('speed_factor'),
-                'currentFlowRate': gcode_move.get('extrude_factor'),
-                'currentFanSpeed': fan.get('speed'),
+                'currentFeedRate': 0,  # gcode_move.get('speed_factor'),
+                'currentFlowRate': 0,  # gcode_move.get('extrude_factor'),
+                'currentFanSpeed': 0,  # fan.get('speed'),
                 'currentZ': current_z
             }
 
@@ -247,31 +248,23 @@ class PrinterState:
 
             if total_layers is None and layer_heights_in_metadata:
                 total_layers = math.ceil(((max_z - first_layer_height) / layer_height + 1))
-                total_layers = max(total_layers, 0) # Apparently the previous calculation can result in negative number in some cases...
+                total_layers = max(total_layers,
+                                   0)  # Apparently the previous calculation can result in negative number in some cases...
 
             if current_layer is None and layer_heights_in_metadata and current_z is not None:
                 current_layer = math.ceil((current_z - first_layer_height) / layer_height + 1)
-                current_layer = min(total_layers, current_layer) # Apparently the previous calculation can result in current_layer > total_layers in some cases...
-                current_layer = max(current_layer, 0) # Apparently the previous calculation can result in negative number in some cases...
+                current_layer = min(total_layers,
+                                    current_layer)  # Apparently the previous calculation can result in current_layer > total_layers in some cases...
+                current_layer = max(current_layer,
+                                    0)  # Apparently the previous calculation can result in negative number in some cases...
 
-        if max_z and current_z > max_z: current_z = 0 # prevent buggy looking flicker on print start
-        if current_layer is None or total_layers is None or is_not_printing or not has_print_duration: # edge case handling - if either are not available we show nothing / show nothing if paused state, transient, etc / show nothing if no print duration (prevents tracking z height during preheat & start bytes)
+        if max_z and current_z > max_z: current_z = 0  # prevent buggy looking flicker on print start
+        if current_layer is None or total_layers is None or is_not_printing or not has_print_duration:  # edge case handling - if either are not available we show nothing / show nothing if paused state, transient, etc / show nothing if no print duration (prevents tracking z height during preheat & start bytes)
             current_layer = None
             total_layers = None
 
         return (current_z, max_z, total_layers, current_layer)
 
     def get_time_info(self):
-        print_stats = self.status.get('print_stats') or dict()
-        completion = self.status.get('virtual_sdcard', {}).get('progress')
-        print_time = print_stats.get('total_duration')
-        actual_print_duration = print_stats.get('print_duration')
-        estimated_time = actual_print_duration / completion if actual_print_duration is not None and completion is not None and completion > 0.001 else None
-        print_time_left = estimated_time - actual_print_duration if estimated_time is not None and actual_print_duration is not None else None
-
-        file_metadata = self.current_file_metadata
-        if file_metadata and file_metadata.get('estimated_time'):
-            slicer_time_left = file_metadata.get('estimated_time') - actual_print_duration if actual_print_duration is not None else 1
-            print_time_left = slicer_time_left if slicer_time_left > 0 else 1
-
-        return (completion, print_time, print_time_left)
+        return (0,0,0)
+        # return (completion, print_time, print_time_left)

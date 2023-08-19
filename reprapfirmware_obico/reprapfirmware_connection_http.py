@@ -10,6 +10,7 @@ import logging
 
 _logger = logging.getLogger('obico.rrf_http')
 
+
 class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
     def __init__(self, app_config, on_event):
         self.id: str = 'rrfconn'
@@ -23,9 +24,9 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         return
 
     def find_all_heaters(self):
-        json_response = self.api_get('/rr_model?key=state')
+        json_response = self.api_get('rr_model?key=state')
         rrf_heater_state = json.loads(json_response)
-        for heaterIdx in  rrf_heater_state.bedHeaters:
+        for heaterIdx in rrf_heater_state.bedHeaters:
             _logger.info(heaterIdx)
         return
 
@@ -34,7 +35,7 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         return
 
     def find_most_recent_job(self):
-        json_response =  self.api_get("rr_model?key=job")
+        json_response = self.api_get("rr_model?key=job")
         rrf_job = json.loads(json_response)
         return rrf_job.lastFileName
 
@@ -53,36 +54,42 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
     def rrf_thread_loop(self) -> None:
         while self.threadActive:
             self.request_status_update()
-            time.sleep(0.2)
+            time.sleep(1)
 
     def request_status_update(self) -> None:
-        json_response = self.api_get('/rr_model?key=state')
-        rrf_state = json.loads(json_response)
-        _logger.info(rrf_state)
-        self.on_event(name='status', sender=self, data=rrf_state)
+        rrf_state = self.api_get('rr_model?key=state')
+        # _logger.info(rrf_state)
+        self.on_event(Event(name='status_update', sender="rrfconn", data=rrf_state))
 
-    def request_jog(self, axes_dict: Dict[str, Number], is_relative: bool, feedrate: int) -> Dict:
-        return Dict
+    def request_jog(self, axes_dict: Dict[str, Number], is_relative: bool, feedrate: int) -> dict:
+        _logger.info(axes_dict)
+        return dict()
 
     def request_home(self, axes) -> Dict:
         self.api_get('rr_gcode?gcode=G28')
 
-    def api_get(self, method, timeout = 5, raise_for_status=True, **params):
-        url = f'{self.reprapfirmware_config.http_address}/{method.replace(".","/")}'
+    def api_get(self, method, timeout=5, raise_for_status=True, **params):
+        url = f'{self.reprapfirmware_config.http_address()}/{method.replace(".","/")}'
+        #_logger.info(url)
         resp = requests.get(url, timeout=timeout)
-        return resp.json()
+        json_data = resp.json()
+        resp.close()
+        return json_data
 
     def start_print(self, filename: str):
         _logger.info(f'Starting Print {filename}')
         return
 
     def pause_print(self):
+        _logger.info(f'Pausing Print')
         return
 
     def resume_print(self):
+        _logger.info(f'Resume Print')
         return
 
     def cancel_print(self):
+        _logger.info(f'Cancel Print')
         return
 
     def request_set_temperature(self):

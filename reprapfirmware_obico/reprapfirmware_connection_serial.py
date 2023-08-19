@@ -1,4 +1,4 @@
-from reprapfirmware_connection_base import RepRapFirmware_Connection_Base
+from .reprapfirmware_connection_base import RepRapFirmware_Connection_Base
 from typing import Optional, Dict, List, Tuple
 from numbers import Number
 import json
