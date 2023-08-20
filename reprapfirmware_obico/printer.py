@@ -48,7 +48,7 @@ class PrinterState:
 
     def is_printing(self) -> bool:
         with self._mutex:
-            return self.status.get('print_stats', {}).get('state') == 'printing'
+            return self.status.get('state') == 'processing'
 
     # Return: The old status.
     def update_status(self, new_status: Dict) -> Dict:

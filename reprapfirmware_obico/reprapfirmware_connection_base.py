@@ -68,6 +68,10 @@ class RepRapFirmware_Connection_Base(ABC):
     def upload_file(self, filename: str, data):
         pass
 
+    @abstractmethod
+    def get_file_list(self, dir):
+        pass
+
 @dataclasses.dataclass
 class Event:
     name: str

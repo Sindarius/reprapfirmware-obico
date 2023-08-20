@@ -250,22 +250,21 @@ class App(object):
 
         elif event.name == 'status_update':
             # full state update from RRF
-            self._received_rrf_update(event.data['result'])
+            self._received_rrf_update(event.data)
 
     def set_current_print(self, printer_state):
 
         def find_current_print_ts():
             cur_job = self.rrfconn.find_most_recent_job()
             if cur_job:
-                return int(cur_job.get('start_time', '0'))
+                return int(cur_job.get('duration', '0'))  # todo Chase down what this is doing
             else:
                 _logger.error(f'Active job indicate in print_stats: {printer_state.status}, but not in job history: {cur_job}')
                 return None
 
         printer_state.set_current_print_ts(find_current_print_ts())
-
-        filename = printer_state.status.get('print_stats', {}).get('filename')
-        file_metadata = self.rrfconn.get_file_info(filename) # .api_get('server/files/metadata', raise_for_status=True, filename=filename)
+        filename = printer_state.status.get('file', {}).get('fileName')
+        file_metadata = self.rrfconn.get_file_info(filename=filename)
         printer_state.current_file_metadata = file_metadata
 
         # So that Obico server can associate the current print with a gcodefile record in the DB
@@ -276,16 +275,13 @@ class App(object):
         printer_state.current_file_metadata = None
 
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
-        _logger.info("***************************")
-        _logger.info(file_metadata)
-        _logger.info("***************************")
-        filename = cur_status.get('print_stats', {}).get('filename')
+        filename = cur_status.get('file', {}).get('fileName')
         basename = pathlib.Path(filename).name if filename else None  # filename in the response is actually the relative path
         g_code_data = dict(
             filename=basename,
             safe_filename=basename,
-            num_bytes=file_metadata['size'],
-            agent_signature='ts:{}'.format(file_metadata['lastModified']),
+            num_bytes=file_metadata.get('file',{}).get('size', 0),
+            agent_signature='ts:{}'.format(file_metadata.get('file',{}).get('lastModified', 0)),
             url=filename
             )
         resp = self.server_conn.send_http_request('POST', '/api/v1/octo/g_code_files/', timeout=60, data=g_code_data, raise_exception=True)
@@ -293,7 +289,7 @@ class App(object):
 
 
     def post_print_event(self, print_event):
-        _logger.log(print_event)
+        _logger.info(print_event)
         ts = self.model.printer_state.current_print_ts
         if ts == -1:
             raise Exception('current_print_ts is -1 on a print_event, which is not supposed to happen.')

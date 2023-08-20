@@ -57,7 +57,8 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
 
     def request_status_update(self) -> None:
         rrf_state = self.api_get('rr_model?key=state')
-        # _logger.info(rrf_state)
+        job_state = self.api_get('rr_model?key=job')
+        rrf_state = {**rrf_state['result'], **job_state['result']} #merge the results to get a full status
         self.on_event(Event(name='status_update', sender="rrfconn", data=rrf_state))
 
     def request_jog(self, axes_dict: Dict[str, Number], is_relative: bool, feedrate: int) -> dict:
@@ -82,8 +83,10 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
 
     def api_post(self, method, filedata):
         url = f'{self.reprapfirmware_config.http_address()}/{method}'
-        resp =requests.post(url,data=filedata)
-        return resp
+        resp = requests.post(url,data=filedata)
+        json_data = resp.json()
+        resp.close()
+        return json_data
 
     def start_print(self, filename: str):
         _logger.info(f'Starting Print {filename}')
@@ -106,9 +109,13 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         return
 
     def get_file_info(self, filename: str) -> Dict:
-        data = self.api_get(f"rr_fileinfo?name=/gcodes/{filename}")
+        data = self.api_get(f"rr_fileinfo?name=/gcodes/{filename.replace('/gcodes/','')}")
         return data
 
     def upload_file(self, filename: str, data):
-        resp = self.api_post(f"rr_upload?name=/gcodes/{filename}", filedata=data)
-        return resp.json()
+        data = self.api_post(f"rr_upload?name=/gcodes/{filename}", filedata=data)
+        return data
+
+    def get_file_list(self, dir):
+        data = self.api_get(f"rr_filelist?dir=/gcodes/{dir}")
+        return data

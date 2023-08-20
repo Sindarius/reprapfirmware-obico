@@ -46,9 +46,6 @@ class FileDownloader:
 
                 filepath_on_rrf = f'/gcodes/{safe_filename}'
                 file_metadata = self.rrfconn.get_file_info(filename=safe_filename)
-                _logger.info("************************************")
-                _logger.info(file_metadata)
-                _logger.info("************************************")
 
                 basename = pathlib.Path(filepath_on_rrf).name  # filename in the response is actually the relative path
                 g_code_data = dict(
