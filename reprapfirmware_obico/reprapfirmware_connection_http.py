@@ -35,9 +35,8 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         return
 
     def find_most_recent_job(self):
-        json_response = self.api_get("rr_model?key=job")
-        rrf_job = json.loads(json_response)
-        return rrf_job.lastFileName
+        resp = self.api_get("rr_model?key=job")
+        return resp
 
     def start(self):
         if self.threadActive:
@@ -63,21 +62,32 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
 
     def request_jog(self, axes_dict: Dict[str, Number], is_relative: bool, feedrate: int) -> dict:
         _logger.info(axes_dict)
+        gcode = "rr_gcode?gcode=M120\nG91\nG0 "
+        for axis in axes_dict:
+            gcode += axis + f"{axes_dict[axis]}"
+        gcode += "G90\nM121"
+        self.api_get(gcode)
         return dict()
 
     def request_home(self, axes) -> Dict:
         self.api_get('rr_gcode?gcode=G28')
 
     def api_get(self, method, timeout=5, raise_for_status=True, **params):
-        url = f'{self.reprapfirmware_config.http_address()}/{method.replace(".","/")}'
+        url = f'{self.reprapfirmware_config.http_address()}/{method}'
         #_logger.info(url)
         resp = requests.get(url, timeout=timeout)
         json_data = resp.json()
         resp.close()
         return json_data
 
+    def api_post(self, method, filedata):
+        url = f'{self.reprapfirmware_config.http_address()}/{method}'
+        resp =requests.post(url,data=filedata)
+        return resp
+
     def start_print(self, filename: str):
         _logger.info(f'Starting Print {filename}')
+        resp = self.api_get(f'rr_gcode?gcode=M32 "{filename}"')
         return
 
     def pause_print(self):
@@ -94,3 +104,11 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
 
     def request_set_temperature(self):
         return
+
+    def get_file_info(self, filename: str) -> Dict:
+        data = self.api_get(f"rr_fileinfo?name=/gcodes/{filename}")
+        return data
+
+    def upload_file(self, filename: str, data):
+        resp = self.api_post(f"rr_upload?name=/gcodes/{filename}", filedata=data)
+        return resp.json()

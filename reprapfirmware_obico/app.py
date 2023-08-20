@@ -25,7 +25,7 @@ from .config import MoonrakerConfig, ServerConfig, Config
 from .server_conn import ServerConn
 from .janus import JanusConn
 from .tunnel import LocalTunnel
-from .passthru_targets import FileDownloader, Printer, MoonrakerApi, FileOperations
+from .passthru_targets import FileDownloader, Printer, FileOperations
 from  .reprapfirmware_connection_factory import get_connection
 
 _logger = logging.getLogger('obico.app')
@@ -59,7 +59,6 @@ class App(object):
         self.local_tunnel = None
         self.target_file_downloader = None
         self.target__printer = None   # The client would pass "_printer" instead of "printer" for historic reasons
-        self.target_moonraker_api = None
         self.q: queue.Queue = queue.Queue(maxsize=1000)
         self.target_file_operations = None
 
@@ -122,7 +121,6 @@ class App(object):
         self.jpeg_poster = JpegPoster(self.model, self.server_conn, self.sentry)
         self.target_file_downloader = FileDownloader(self.model, self.rrfconn, self.server_conn, self.sentry)
         self.target__printer = Printer(self.model, self.rrfconn, self.server_conn)
-        self.target_moonraker_api = MoonrakerApi(self.model, self.rrfconn, self.sentry)
         self.target_file_operations = FileOperations(self.model, self.rrfconn, self.sentry)
 
         self.local_tunnel = LocalTunnel(
@@ -213,6 +211,7 @@ class App(object):
             self._on_rrfconn_event(event)
 
     def _on_rrfconn_event(self, event):
+        # todo Fix this up for RRF specific data
         # _logger.info("App : RRFCONN EVENT")
         if event.name == 'mr_disconnected':
             # clear app's rrf state to indicate the loss of connection to RRF
@@ -266,7 +265,7 @@ class App(object):
         printer_state.set_current_print_ts(find_current_print_ts())
 
         filename = printer_state.status.get('print_stats', {}).get('filename')
-        file_metadata = self.rrfconn.api_get('server/files/metadata', raise_for_status=True, filename=filename)
+        file_metadata = self.rrfconn.get_file_info(filename) # .api_get('server/files/metadata', raise_for_status=True, filename=filename)
         printer_state.current_file_metadata = file_metadata
 
         # So that Obico server can associate the current print with a gcodefile record in the DB
@@ -277,13 +276,16 @@ class App(object):
         printer_state.current_file_metadata = None
 
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
+        _logger.info("***************************")
+        _logger.info(file_metadata)
+        _logger.info("***************************")
         filename = cur_status.get('print_stats', {}).get('filename')
         basename = pathlib.Path(filename).name if filename else None  # filename in the response is actually the relative path
         g_code_data = dict(
             filename=basename,
             safe_filename=basename,
             num_bytes=file_metadata['size'],
-            agent_signature='ts:{}'.format(file_metadata['modified']),
+            agent_signature='ts:{}'.format(file_metadata['lastModified']),
             url=filename
             )
         resp = self.server_conn.send_http_request('POST', '/api/v1/octo/g_code_files/', timeout=60, data=g_code_data, raise_exception=True)
@@ -291,6 +293,7 @@ class App(object):
 
 
     def post_print_event(self, print_event):
+        _logger.log(print_event)
         ts = self.model.printer_state.current_print_ts
         if ts == -1:
             raise Exception('current_print_ts is -1 on a print_event, which is not supposed to happen.')
@@ -342,13 +345,14 @@ class App(object):
             return
 
         if cur_state == PrinterState.STATE_OPERATIONAL and prev_state in PrinterState.ACTIVE_STATES:
-                _state = data['status'].get('print_stats', {}).get('state')
+                # todo come up with a better way to check final result here.
+                _state = data['status']
                 if _state == 'cancelled':
                     self.post_print_event(PrinterState.EVENT_CANCELLED)
                     # PrintFailed as well to be consistent with OctoPrint
                     time.sleep(0.5)
                     self.post_print_event(PrinterState.EVENT_FAILED)
-                elif _state == 'complete':
+                elif _state == 'idle':
                     self.post_print_event(PrinterState.EVENT_DONE)
                 elif _state == 'error':
                     self.post_print_event(PrinterState.EVENT_FAILED)

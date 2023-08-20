@@ -60,6 +60,13 @@ class RepRapFirmware_Connection_Base(ABC):
     def request_set_temperature(self):
         pass
 
+    @abstractmethod
+    def get_file_info(self, filename: str) -> Dict:
+        pass
+
+    @abstractmethod
+    def upload_file(self, filename: str, data):
+        pass
 
 @dataclasses.dataclass
 class Event:

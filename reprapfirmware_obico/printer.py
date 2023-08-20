@@ -83,7 +83,7 @@ class PrinterState:
     def get_state_from_status(cls, data: Dict) -> str:
         return {
             'idle': PrinterState.STATE_OPERATIONAL,
-            'printing': PrinterState.STATE_PRINTING,
+            'processing': PrinterState.STATE_PRINTING,
             'paused': PrinterState.STATE_PAUSED,
             'error': PrinterState.STATE_OPERATIONAL,
             # state is "error" when printer quits a print due to an error, but operational
@@ -128,6 +128,7 @@ class PrinterState:
                     data['settings']['platform_uname'].append('')
             return data
 
+# TODO Fix this to llok at RRF properties
     def to_status(self) -> Dict:
         with self._mutex:
             state = self.get_state_from_status(self.status)

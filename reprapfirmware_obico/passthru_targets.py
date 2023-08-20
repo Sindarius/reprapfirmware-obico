@@ -28,39 +28,39 @@ class FileDownloader:
 
         def _download_and_print():
             try:
+                _logger.info(g_code_file)
                 _logger.info(
                     f'downloading from {g_code_file["url"]}')
 
                 safe_filename = sanitize_filename(g_code_file['safe_filename'])
+                _logger.info(f'SAFE FILENAME {safe_filename}')
                 r = requests.get(
                     g_code_file['url'],
                     allow_redirects=True,
                     timeout=60 * 30
                 )
                 r.raise_for_status()
-
-                _logger.info(f'uploading "{safe_filename}" to moonraker')
-                resp_data = self.moonrakerconn.api_post(
-                    'server/files/upload',
-                    multipart_filename=safe_filename,
-                    multipart_fileobj=r.content,
-                    path=self.model.config.server.upload_dir,
-                )
+                _logger.info(f'uploading "{safe_filename}" to RRF')
+                resp_data = self.rrfconn.upload_file(safe_filename, r.content)
                 _logger.debug(f'upload response: {resp_data}')
 
-                filepath_on_mr = resp_data['item']['path']
-                file_metadata = self.moonrakerconn.api_get('server/files/metadata', raise_for_status=True, filename=filepath_on_mr)
-                basename = pathlib.Path(filepath_on_mr).name  # filename in the response is actually the relative path
+                filepath_on_rrf = f'/gcodes/{safe_filename}'
+                file_metadata = self.rrfconn.get_file_info(filename=safe_filename)
+                _logger.info("************************************")
+                _logger.info(file_metadata)
+                _logger.info("************************************")
+
+                basename = pathlib.Path(filepath_on_rrf).name  # filename in the response is actually the relative path
                 g_code_data = dict(
                     safe_filename=basename,
-                    agent_signature='ts:{}'.format(file_metadata['modified'])
+                    agent_signature='ts:{}'.format(file_metadata['lastModified'])
                     )
 
                 # PATCH /api/v1/octo/g_code_files/{}/ should be called before printer/print/start call so that the file can be properly matched to the server record at the moment of PrintStarted Event
                 resp = self.server_conn.send_http_request('PATCH', '/api/v1/octo/g_code_files/{}/'.format(g_code_file['id']), timeout=60, data=g_code_data, raise_exception=True)
                 _logger.info(f'uploading "{safe_filename}" finished.')
 
-                resp_data = self.moonrakerconn.api_post('printer/print/start', filename=filepath_on_mr)
+                resp_data = self.rrfconn.start_print(filename=filepath_on_rrf)
             except:
                 self.sentry.captureException()
                 raise
@@ -101,20 +101,7 @@ class Printer:
         if not self.rrfconn:
             return None, 'Printer is not connected!'
 
-
-    #TODO - Fix this to use RRF model
-        gcode_move = self.model.printer_state.status['gcode_move']
-        is_relative = not gcode_move['absolute_coordinates']
-        has_z = 'z' in {axis.lower() for axis in axes_dict.keys()}
-        feedrate = (
-            self.model.config.server.feedrate_z
-            if has_z
-            else self.model.config.server.feedrate_xy
-        )
-
-        self.moonrakerconn.request_jog(
-            axes_dict=axes_dict, is_relative=is_relative, feedrate=feedrate
-        )
+        self.rrfconn.request_jog(axes_dict, True, 0)
         return None, None
 
     def home(self, axes) -> None:
@@ -133,49 +120,6 @@ class Printer:
         return None, None
 
 
-class MoonrakerApi:
-
-    def __init__(self, model, moonrakerconn, sentry):
-        self.model = model
-        self.moonrakerconn = moonrakerconn
-        self.sentry = sentry
-
-    def __getattr__(self, func):
-        proxy = self.MoonrakerApiProxy(func, self.model, self.moonrakerconn, self.sentry)
-        return proxy.call_api
-
-    class MoonrakerApiProxy:
-
-        def __init__(self, func, model, moonrakerconn, sentry):
-            self.func = func
-            self.model = model
-            self.moonrakerconn = moonrakerconn
-            self.sentry = sentry
-
-        def call_api(self, verb='get', **kwargs):
-            if not self.moonrakerconn:
-                return None, 'Printer is not connected!'
-
-            api_func = getattr(self.moonrakerconn, f'api_{verb.lower()}', None)
-
-            ret_value = None
-            error = None
-            try:
-                # Wrap requests.exceptions.RequestException in Exception, since it's one of the configured errors_to_ignore
-                try:
-                    ret_value = api_func(self.func, **kwargs)
-                except requests.exceptions.RequestException as exc:
-                    if (self.func == "printer/gcode/script"):
-                        raise Exception(' "{}" - "{}"'.format(self.func, kwargs.get('script', '')[:5])) from exc # Take first 5 characters of the scrips to see if Sentry grouping will behave more friendly
-                    elif self.func == "machine/device_power/devices" and verb == "get" and hasattr(exc, 'response') and exc.response is not None and exc.response.status_code == 404:
-                            return {'devices': []}, None # User has no power devices configured. This handling is much easier than checking configfile for [power xxx] before making request
-                    raise Exception(' "{}" - "{}" '.format(self.func, verb)) from exc
-            except Exception as ex:
-                error = 'Error in calling "{}" - "{}"'.format(self.func, verb)
-                self.sentry.captureException()
-
-            return ret_value, error
-
 class FileOperations:
     def __init__(self, model, rrfconn: RepRapFirmware_Connection_Base, sentry ):
         self.model = model
@@ -187,15 +131,17 @@ class FileOperations:
         file_metadata = None
 
         try:
-            file_metadata = self.moonrakerconn.api_get('server/files/metadata', raise_for_status=True, filename=filepath)
-            filepath_signature = 'ts:{}'.format(file_metadata['modified'])
+            file_metadata = self.rrfconn.get_file_info(filename=filepath)
+            filepath_signature = 'ts:{}'.format(file_metadata['lastModified'])
             return filepath_signature == server_signature # check if signatures match -> Boolean
         except Exception as e:
             return False # file has been deleted, moved, or renamed
 
     def start_printer_local_print(self, file_to_print):
-        if not self.moonrakerconn:
+        if not self.rrfconn:
             return None, 'Printer is not connected!'
+
+        _logger.info(file_to_print)
 
         ret_value = None
         error = None
@@ -204,7 +150,7 @@ class FileOperations:
 
         if file_is_not_modified:
             ret_value = 'Success'
-            self.moonrakerconn.api_post('printer/print/start', raise_for_status=True, filename=filepath)
+            self.rrfconn.start_print(filename=filepath)
             return ret_value, error
         else:
             error = 'File has been modified! Did you move, delete, or overwrite this file?'
