@@ -175,8 +175,9 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         data = self.api_post(f"rr_upload?name=/gcodes/{filename}", filedata=data)
         return data
 
-    def get_file_list(self, dir):
-        data = self.api_get(f"rr_filelist?dir=/gcodes/{dir}")
+    def get_file_list(self, dir= ''):
+        dir = dir.replace('gcodes/', '')
+        data = self.api_get(f"rr_filelist?dir=/gcodes/{fix_rrf_filename(dir)}")
         return data
 
     def get_current_heater_state(self):

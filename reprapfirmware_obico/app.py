@@ -25,7 +25,7 @@ from .config import ServerConfig, Config
 from .server_conn import ServerConn
 from .janus import JanusConn
 from .tunnel import LocalTunnel
-from .passthru_targets import FileDownloader, Printer, FileOperations
+from .passthru_targets import FileDownloader, Printer, FileOperations, RepRapFirmwareApi
 from  .reprapfirmware_connection_factory import get_connection
 
 _logger = logging.getLogger('obico.app')
@@ -61,6 +61,7 @@ class App(object):
         self.target__printer = None   # The client would pass "_printer" instead of "printer" for historic reasons
         self.q: queue.Queue = queue.Queue(maxsize=1000)
         self.target_file_operations = None
+        self.target_moonraker_api = None # This has to be called this for now because of the server reflective API call
 
     def push_event(self, event):
         if self.shutdown:
@@ -123,6 +124,7 @@ class App(object):
         self.target_file_downloader = FileDownloader(self.model, self.rrfconn, self.server_conn, self.sentry)
         self.target__printer = Printer(self.model, self.rrfconn, self.server_conn)
         self.target_file_operations = FileOperations(self.model, self.rrfconn, self.sentry)
+        self.target_moonraker_api = RepRapFirmwareApi(self.model, self.rrfconn, self.sentry)
 
         self.local_tunnel = LocalTunnel(
             tunnel_config=self.model.config.tunnel,
@@ -404,8 +406,12 @@ class App(object):
 
             error = None
             try:
+                _logger.info(passthru)
                 target = getattr(self, 'target_' + passthru.get('target'))
+                _logger.info(target)
+                _logger.info(passthru['func'])
                 func = getattr(target, passthru['func'], None)
+                _logger.info(func)
                 ret_value, error = func(*(passthru.get("args", [])), **(passthru.get("kwargs", {})))
             except AttributeError:
                 error = 'Request not supported. Please make sure moonraker-obico is updated to the latest version. If moonraker-obico is already up to date and you still see this error, please contact Obico support at support@obico.io'

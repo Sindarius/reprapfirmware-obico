@@ -9,6 +9,7 @@ import threading
 import io
 import pathlib
 from .reprapfirmware_connection_base import RepRapFirmware_Connection_Base
+from datetime import datetime
 
 from .utils import sanitize_filename
 from .state_transition import call_func_with_state_transition
@@ -63,7 +64,6 @@ class FileDownloader:
                 self.sentry.captureException()
                 raise
 
-
         if self.model.printer_state.is_printing():
             return None, 'Printer busy!'
 
@@ -79,7 +79,7 @@ class Printer:
         self.server_conn = server_conn
 
     def call_printer_api_with_state_transition(self, printer_action, transient_state, timeout=5*60):
-
+        _logger.info("PING")
         def _call_printer_api():
             resp_data = printer_action()
 
@@ -116,6 +116,10 @@ class Printer:
         #self.moonrakerconn.request_set_temperature(heater=mr_heater, target_temp=target_temp)
         return None, None
 
+    def list_files(self):
+        return self.rrfconn.get_file_list('')  # lock to gcodes for now
+
+
 
 class FileOperations:
     def __init__(self, model, rrfconn: RepRapFirmware_Connection_Base, sentry ):
@@ -149,4 +153,53 @@ class FileOperations:
             return ret_value, error
         else:
             error = 'File has been modified! Did you move, delete, or overwrite this file?'
+            return ret_value, error
+
+
+class RepRapFirmwareApi:
+    def __init__(self, model, rrfconn, sentry):
+        self.model = model
+        self.rrfconn = rrfconn
+        self.sentry = sentry
+
+    def __getattr__(self, func):
+        proxy = self.RepRapFirmwareApiProxy(func, self.model, self.rrfconn, self.sentry)
+        return proxy.call_api
+
+    class RepRapFirmwareApiProxy:
+        def __init__(self, func, model, rrfconn, sentry):
+            self.func = func
+            self.model = model
+            self.rrfconn = rrfconn
+            self.sentry = sentry
+
+        def fix_file_structure(self, fileentry):
+            #date = datetime.strptime(fileentry['date'],'%Y-%m-%dT%H:%M:%S')
+            return {'filename': fileentry['name'], 'size': fileentry['size'], 'modified': '100000', 'permissions': 'rw'}
+
+        def fix_dir_structure(self, fileentry):
+            #date = datetime.strptime(fileentry['date'], '%Y-%m-%dT%H:%M:%S')
+            return {'dirname': fileentry['name'], 'size': fileentry['size'], 'modified': '100000', 'permissions': 'rw'}
+        def call_api(self, verb='get', **kwargs):
+            if not self.rrfconn:
+                return None, 'Printer is not connected!'
+            ret_value = []
+            error = None
+
+            _logger.info(self.func)
+
+            if self.func == 'server/files/directory':
+                files = self.rrfconn.get_file_list(kwargs['path']).get('files', {})
+                _logger.info(files)
+                ret_files = []
+                ret_dir = []
+                for f in files:
+                    if f['type'] == 'f':
+                        ret_files.append(self.fix_file_structure(f))
+                    else:
+                        ret_dir.append(self.fix_dir_structure(f))
+                ret_value = {**{'dirs': ret_dir}, **{'files': ret_files}}
+            elif self.func == 'printer/print/start':
+                self.rrfconn.start_print(f'/gcodes{kwargs["filename"]}')
+
             return ret_value, error
