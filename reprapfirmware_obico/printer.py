@@ -31,7 +31,7 @@ class PrinterState:
     EVENT_DONE = 'PrintDone'
     EVENT_FAILED = 'PrintFailed'
 
-    ACTIVE_STATES = [STATE_PRINTING, STATE_PAUSED]
+    ACTIVE_STATES = [STATE_PRINTING, STATE_PAUSED, STATE_PAUSING, STATE_RESUMING, STATE_CANCELLING]
 
     def __init__(self, app_config: Config):
         self._mutex = threading.RLock()

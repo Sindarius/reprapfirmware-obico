@@ -266,14 +266,18 @@ class App(object):
         printer_state.set_obico_g_code_file_id(self.find_obico_g_code_file_id(printer_state.status, file_metadata))
 
     def unset_current_print(self, printer_state):
+        _logger.debug('Unsetting print')
         printer_state.set_current_print_ts(-1)
         printer_state.current_file_metadata = None
 
 #todo This is getitng busted when searching for the file.
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
+        time.sleep(1)
         file = cur_status.get('job', {}).get('file', {})
         basename = file.get('fileName','').replace('/gcodes/', '')
-        time.sleep(1)
+        if basename == '':
+            basename = file.get('lastFileName','').replace('/gcodes/', '')
+        _logger.info(basename)
         g_code_data = dict(
             safe_filename=basename,
             agent_signature='ts:{}'.format(file_metadata.get('lastModified')),
