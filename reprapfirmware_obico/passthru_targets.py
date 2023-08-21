@@ -33,8 +33,6 @@ class FileDownloader:
                 _logger.info(
                     f'downloading from {g_code_file["url"]}')
 
-                _logger.info(g_code_file)
-
                 safe_filename = sanitize_filename(g_code_file['safe_filename'])
                 r = requests.get(
                     g_code_file['url'],
@@ -139,8 +137,6 @@ class FileOperations:
     def start_printer_local_print(self, file_to_print):
         if not self.rrfconn:
             return None, 'Printer is not connected!'
-
-        _logger.info(file_to_print)
 
         ret_value = None
         error = None

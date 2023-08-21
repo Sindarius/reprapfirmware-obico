@@ -90,10 +90,14 @@ class PrinterState:
             'idle': PrinterState.STATE_OPERATIONAL,
             'processing': PrinterState.STATE_PRINTING,
             'paused': PrinterState.STATE_PAUSED,
+            'pausing': PrinterState.STATE_PAUSED,
             'error': PrinterState.STATE_OPERATIONAL,
             # state is "error" when printer quits a print due to an error, but operational
             'simulating': PrinterState.STATE_PRINTING,
-            'busy': PrinterState.STATE_OPERATIONAL
+            'busy': PrinterState.STATE_OPERATIONAL,
+            'changingTool': PrinterState.STATE_OPERATIONAL,
+            'resuming': PrinterState.STATE_RESUMING,
+            'cancelling':PrinterState.STATE_CANCELLING
         }.get(data.get('state', {}).get('status', 'unknown'), PrinterState.STATE_OFFLINE)
 
     def to_dict(
@@ -174,8 +178,8 @@ class PrinterState:
                         'operational': state not in [PrinterState.STATE_OFFLINE, PrinterState.STATE_GCODE_DOWNLOADING],
                         'paused': state == PrinterState.STATE_PAUSED,
                         'printing': state == PrinterState.STATE_PRINTING,
-                        'cancelling': False,
-                        'pausing': False,
+                        'cancelling': state == PrinterState.STATE_CANCELLING,
+                        'pausing': state == PrinterState.STATE_PAUSING,
                         'error': has_error,
                         'ready': state == PrinterState.STATE_OPERATIONAL,
                         'closedOrError': False,
@@ -218,68 +222,18 @@ class PrinterState:
                 'currentFanSpeed': 0  # fan.get('speed'),
             }
 
-    def get_z_info_old(self):
-        '''
-        return: (current_z, max_z, current_layer, total_layers). Any of them can be None
-        '''
-        print_stats = self.status.get('print_stats') or dict()
-        print_info = print_stats.get('info') or dict()
-        file_metadata = self.current_file_metadata
-        is_not_printing = self.is_printing() is False or self.transient_state is not None
-        has_print_duration = print_stats.get('print_duration', 0) > 0
-
-        current_z = None
-        max_z = None
-        total_layers = print_info.get('total_layer')
-        current_layer = print_info.get('current_layer')
-
-        gcode_position = self.status.get('gcode_move', {}).get('gcode_position', [])
-        current_z = gcode_position[2] if len(gcode_position) > 2 else None
-
-        # Credit: https://github.com/mainsail-crew/mainsail/blob/develop/src/store/printer/getters.ts#L122
-
-        if file_metadata:
-            max_z = file_metadata.get('object_height')
-
-            if total_layers is None:
-                total_layers = file_metadata.get('layer_count')
-
-            first_layer_height = file_metadata.get('first_layer_height')
-            layer_height = file_metadata.get('layer_height')
-            layer_heights_in_metadata = layer_height is not None and first_layer_height is not None
-
-            if total_layers is None and layer_heights_in_metadata:
-                total_layers = math.ceil(((max_z - first_layer_height) / layer_height + 1))
-                total_layers = max(total_layers,
-                                   0)  # Apparently the previous calculation can result in negative number in some cases...
-
-            if current_layer is None and layer_heights_in_metadata and current_z is not None:
-                current_layer = math.ceil((current_z - first_layer_height) / layer_height + 1)
-                current_layer = min(total_layers,
-                                    current_layer)  # Apparently the previous calculation can result in current_layer > total_layers in some cases...
-                current_layer = max(current_layer,
-                                    0)  # Apparently the previous calculation can result in negative number in some cases...
-
-        if max_z and current_z > max_z: current_z = 0  # prevent buggy looking flicker on print start
-        if current_layer is None or total_layers is None or is_not_printing or not has_print_duration:  # edge case handling - if either are not available we show nothing / show nothing if paused state, transient, etc / show nothing if no print duration (prevents tracking z height during preheat & start bytes)
-            current_layer = None
-            total_layers = None
-
-        return (current_z, max_z, total_layers, current_layer)
-
     def get_z_info(self):
-        total_layers = 0
-        current_layer = 0
         is_not_printing = self.is_printing() is False or self.transient_state is not None
         move = self.status.get('move')
-        file = self.status.get('job', {}).get('file', {})
+        job =self.status.get('job', {})
+        file = job.get('file', {})
 
         z_axis = next((z for z in move['axes'] if z['letter'] == 'Z'), None)
         current_z = float(z_axis.get('userPosition', 0)) if z_axis is not None else 0
         max_z = file.get('height',0)
 
-        layer_height = file.get('layer_height', None)
-        num_layers = file.get('numLayers', None)
+        current_layer = job.get('layer', None)
+        total_layers = file.get('numLayers', None)
 
         if is_not_printing:
             current_layer = None
@@ -288,6 +242,9 @@ class PrinterState:
         return current_z, max_z, total_layers, current_layer
 
     def get_time_info(self, job):
-        completed = job.get('filePosition', 1) / job.get('file', {}).get('size', 1)
+        try:
+            completed = job.get('filePosition', 1) / job.get('file', {}).get('size', 1)
+        except:
+            completed = 0
         return completed, job.get('duration', 0), job.get('timesLeft', {}).get('file', 0)
         # return (completion, print_time, print_time_left)

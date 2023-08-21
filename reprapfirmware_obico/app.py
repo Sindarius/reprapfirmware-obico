@@ -273,10 +273,10 @@ class App(object):
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
         file = cur_status.get('job', {}).get('file', {})
         basename = file.get('fileName','').replace('/gcodes/', '')
-
+        time.sleep(1)
         g_code_data = dict(
             safe_filename=basename,
-            agent_signature='ts:{}'.format(file.get('lastModified')),
+            agent_signature='ts:{}'.format(file_metadata.get('lastModified')),
             )
 
         resp = self.server_conn.send_http_request('POST', '/api/v1/octo/g_code_files/', timeout=60, data=g_code_data, raise_exception=True)

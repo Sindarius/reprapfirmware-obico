@@ -68,7 +68,6 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
                 heater.sensor_idx = sensorIdx
                 heater.tool_idx = toolIdx
                 self.heaters.append(heater)
-        _logger.debug(self.heaters)
 
     def update_heaters(self):
         resp = self.api_get("rr_model?key=heat").get('result', {}).get('heaters', [])
@@ -160,6 +159,7 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
 
     def cancel_print(self):
         _logger.info('Cancel Print')
+        self.pause_print()
         self.api_get('rr_gcode?gcode=M0')
         return
 
