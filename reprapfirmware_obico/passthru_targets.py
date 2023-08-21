@@ -1,4 +1,6 @@
 import logging
+import traceback
+
 import requests
 import os
 import sys
@@ -28,12 +30,12 @@ class FileDownloader:
 
         def _download_and_print():
             try:
-                _logger.info(g_code_file)
                 _logger.info(
                     f'downloading from {g_code_file["url"]}')
 
+                _logger.info(g_code_file)
+
                 safe_filename = sanitize_filename(g_code_file['safe_filename'])
-                _logger.info(f'SAFE FILENAME {safe_filename}')
                 r = requests.get(
                     g_code_file['url'],
                     allow_redirects=True,
@@ -43,21 +45,22 @@ class FileDownloader:
                 _logger.info(f'uploading "{safe_filename}" to RRF')
                 resp_data = self.rrfconn.upload_file(safe_filename, r.content)
                 _logger.debug(f'upload response: {resp_data}')
-
+                time.sleep(1)
                 filepath_on_rrf = f'/gcodes/{safe_filename}'
                 file_metadata = self.rrfconn.get_file_info(filename=safe_filename)
+                file_metadata['url'] = g_code_file['url']
 
-                basename = pathlib.Path(filepath_on_rrf).name  # filename in the response is actually the relative path
+                basename = safe_filename  # filename in the response is actually the relative path
+
                 g_code_data = dict(
                     safe_filename=basename,
-                    agent_signature='ts:{}'.format(file_metadata['lastModified'])
+                    agent_signature='ts:{}'.format(file_metadata['lastModified']),
                     )
 
                 # PATCH /api/v1/octo/g_code_files/{}/ should be called before printer/print/start call so that the file can be properly matched to the server record at the moment of PrintStarted Event
                 resp = self.server_conn.send_http_request('PATCH', '/api/v1/octo/g_code_files/{}/'.format(g_code_file['id']), timeout=60, data=g_code_data, raise_exception=True)
                 _logger.info(f'uploading "{safe_filename}" finished.')
-
-                resp_data = self.rrfconn.start_print(filename=filepath_on_rrf)
+                self.rrfconn.start_print(filename=filepath_on_rrf)  # start the print
             except:
                 self.sentry.captureException()
                 raise
@@ -67,7 +70,6 @@ class FileDownloader:
             return None, 'Printer busy!'
 
         call_func_with_state_transition(self.server_conn, self.model.printer_state, self.model.printer_state.STATE_GCODE_DOWNLOADING, _download_and_print, MAX_GCODE_DOWNLOAD_SECONDS)
-
         return {'target_path': g_code_file['filename']}, None
 
 
@@ -112,8 +114,8 @@ class Printer:
         if not self.rrfconn:
             return None, 'Printer is not connected!'
 
-        mr_heater = self.model.config.get_mapped_mr_heater_name(heater)
-        self.moonrakerconn.request_set_temperature(heater=mr_heater, target_temp=target_temp)
+        #mr_heater = self.model.config.get_mapped_mr_heater_name(heater)
+        #self.moonrakerconn.request_set_temperature(heater=mr_heater, target_temp=target_temp)
         return None, None
 
 

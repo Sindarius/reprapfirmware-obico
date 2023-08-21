@@ -3,6 +3,22 @@ from numbers import Number
 from abc import ABC, abstractmethod
 import dataclasses
 
+@dataclasses.dataclass
+class Event:
+    name: str
+    data: Dict
+    sender: Optional[str] = None
+
+@dataclasses.dataclass
+class HeaterModel:
+    name: str
+    type: str
+    heater_idx: int
+    sensor_idx: int  # sensor index
+    tool_idx: int  # tool number or bed number - necessary to set the temp on the correct target
+    actual: Number
+    target: Number
+
 class RepRapFirmware_Connection_Base(ABC):
     @abstractmethod
     def __init__(self):
@@ -72,8 +88,7 @@ class RepRapFirmware_Connection_Base(ABC):
     def get_file_list(self, dir):
         pass
 
-@dataclasses.dataclass
-class Event:
-    name: str
-    data: Dict
-    sender: Optional[str] = None
+    def get_current_heater_state(self) -> List[HeaterModel]:
+        pass
+
+

@@ -1,6 +1,6 @@
 import math
 import platform
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 import threading
 import time
 import pathlib
@@ -8,6 +8,7 @@ import pathlib
 from .config import Config
 from .version import VERSION
 from .utils import sanitize_filename
+from .reprapfirmware_connection_base import RepRapFirmware_Connection_Base
 import logging
 
 _logger = logging.getLogger('obico.printer')
@@ -42,13 +43,17 @@ class PrinterState:
         self.thermal_presets = []
         self.installed_plugins = []
         self.current_file_metadata = None
+        self.rrfconn: Optional[RepRapFirmware_Connection_Base] = None
+
+    def set_connection(self, rrfconn : RepRapFirmware_Connection_Base):
+        self.rrfconn = rrfconn
 
     def has_active_job(self) -> bool:
         return PrinterState.get_state_from_status(self.status) in PrinterState.ACTIVE_STATES
 
     def is_printing(self) -> bool:
         with self._mutex:
-            return self.status.get('state') == 'processing'
+            return self.status.get('state',{}).get('status','unknown') == 'processing'
 
     # Return: The old status.
     def update_status(self, new_status: Dict) -> Dict:
@@ -89,7 +94,7 @@ class PrinterState:
             # state is "error" when printer quits a print due to an error, but operational
             'simulating': PrinterState.STATE_PRINTING,
             'busy': PrinterState.STATE_OPERATIONAL
-        }.get(data.get('status', 'unknown'), PrinterState.STATE_OFFLINE)
+        }.get(data.get('state', {}).get('status', 'unknown'), PrinterState.STATE_OFFLINE)
 
     def to_dict(
         self, print_event: Optional[str] = None, with_config: Optional[bool] = False
@@ -128,7 +133,7 @@ class PrinterState:
                     data['settings']['platform_uname'].append('')
             return data
 
-# TODO Fix this to llok at RRF properties
+# TODO Fix this to look at RRF properties
     def to_status(self) -> Dict:
         with self._mutex:
             state = self.get_state_from_status(self.status)
@@ -136,33 +141,30 @@ class PrinterState:
             if self.transient_state is not None:
                 state = self.transient_state
 
-            job = self.status.get('job') or dict()
-
-            #            print_stats = self.status.get('print_stats') or dict()
-            #            virtual_sdcard = self.status.get('virtual_sdcard') or dict()
             has_error = ''  # self.status.get('print_stats', {}).get('state', '') == 'error'
-            #            fan = self.status.get('fan') or dict()
-            #            gcode_move = self.status.get('gcode_move') or dict()
 
             temps = {}
-            for heater in self.app_config.all_mr_heaters():
-                data = self.status.get(heater, {})
 
-                temps[self.app_config.get_mapped_server_heater_name(heater)] = {
-                    'actual': round(data.get('temperature', 0.), 2),
-                    'offset': 0,
-                    'target': data.get('target'),
-                    # "target = null" indicates this is a sensor, not a heater, and hence temperature can't be set
-                }
+            rrf_state = self.status.get('state',{})
+            rrf_job = self.status.get('job', {})
+            rrf_move = self.status.get('move', {})
 
-            filepath = job['file']['fileName'] if job else None   # print_stats.get('filename')
+            if self.rrfconn is not None:
+                for heater in self.rrfconn.get_current_heater_state():
+                    temps[heater.name] = {
+                        'actual': heater.actual,
+                        'offset': 0,
+                        'target': heater.target
+                    }
+
+            filepath = rrf_job.get('file', {}).get('fileName', '') if rrf_job else None
             filename = pathlib.Path(filepath).name if filepath else None
             file_display_name = sanitize_filename(filename) if filename else None
 
             if state == PrinterState.STATE_OFFLINE:
                 return {}
 
-            completion, print_time, print_time_left = self.get_time_info()
+            completion, print_time, print_time_left = self.get_time_info(rrf_job)
             current_z, max_z, total_layers, current_layer = self.get_z_info()
             return {
                 '_ts': time.time(),
@@ -181,7 +183,7 @@ class PrinterState:
                     },
                     'error': ''  # print_stats.get('message') if has_error else None
                 },
-                'currentZ': None,
+                'currentZ': current_z,
                 'job': {
                     'file': {
                         'name': filename,
@@ -194,10 +196,10 @@ class PrinterState:
                 },
                 'progress': {
                     'completion': completion * 100,
-                    'filepos': 0,  # virtual_sdcard.get('file_position', 0),
+                    'filepos': rrf_job.get('filePosition', 0),
                     'printTime': print_time,
                     'printTimeLeft': print_time_left,
-                    'filamentUsed': 0  # print_stats.get('filament_used')
+                    'filamentUsed': rrf_job.get('rawExtrusion', 0)
                 },
                 'temperatures': temps,
                 'file_metadata': {
@@ -211,13 +213,12 @@ class PrinterState:
                     }
                 },
                 'currentLayerHeight': current_layer,
-                'currentFeedRate': 0,  # gcode_move.get('speed_factor'),
+                'currentFeedRate': self.status.get('move',{}).get('speedFactor', 0),  # gcode_move.get('speed_factor'),
                 'currentFlowRate': 0,  # gcode_move.get('extrude_factor'),
-                'currentFanSpeed': 0,  # fan.get('speed'),
-                'currentZ': current_z
+                'currentFanSpeed': 0  # fan.get('speed'),
             }
 
-    def get_z_info(self):
+    def get_z_info_old(self):
         '''
         return: (current_z, max_z, current_layer, total_layers). Any of them can be None
         '''
@@ -266,6 +267,27 @@ class PrinterState:
 
         return (current_z, max_z, total_layers, current_layer)
 
-    def get_time_info(self):
-        return (0,0,0)
+    def get_z_info(self):
+        total_layers = 0
+        current_layer = 0
+        is_not_printing = self.is_printing() is False or self.transient_state is not None
+        move = self.status.get('move')
+        file = self.status.get('job', {}).get('file', {})
+
+        z_axis = next((z for z in move['axes'] if z['letter'] == 'Z'), None)
+        current_z = float(z_axis.get('userPosition', 0)) if z_axis is not None else 0
+        max_z = file.get('height',0)
+
+        layer_height = file.get('layer_height', None)
+        num_layers = file.get('numLayers', None)
+
+        if is_not_printing:
+            current_layer = None
+            total_layers = None
+
+        return current_z, max_z, total_layers, current_layer
+
+    def get_time_info(self, job):
+        completed = job.get('filePosition', 1) / job.get('file', {}).get('size', 1)
+        return completed, job.get('duration', 0), job.get('timesLeft', {}).get('file', 0)
         # return (completion, print_time, print_time_left)

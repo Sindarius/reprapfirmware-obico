@@ -10,20 +10,6 @@ from .utils import SentryWrapper
 
 _logger = logging.getLogger('obico.config')
 
-@dataclasses.dataclass
-class MoonrakerConfig:
-    host: str = '127.0.0.1'
-    port: int = 7125
-    api_key: Optional[str] = None
-
-    def http_address(self):
-        if not self.host or not self.port:
-            return None
-        return f'http://{self.host}:{self.port}'
-
-    def ws_url(self):
-        return f'ws://{self.host}:{self.port}/websocket'
-
 
 class RRFConnectionTypes(Enum):
     HTTP = 0
@@ -33,7 +19,7 @@ class RRFConnectionTypes(Enum):
 
 @dataclasses.dataclass
 class RepRapFirmwareConfig:
-    host:str = 'duet3'
+    host: str = 'duet3'
     port: int = 80
     password: Optional[str] = None
     connectiontype: RRFConnectionTypes = RRFConnectionTypes.HTTP
@@ -53,8 +39,8 @@ class ServerConfig:
     # feedrates for printer control, mm/s
     DEFAULT_FEEDRATE_XY = 100
     DEFAULT_FEEDRATE_Z = 10
-    feedrate_xy : int = DEFAULT_FEEDRATE_XY
-    feedrate_z : int = DEFAULT_FEEDRATE_Z
+    feedrate_xy: int = DEFAULT_FEEDRATE_XY
+    feedrate_z: int = DEFAULT_FEEDRATE_Z
 
     def canonical_endpoint_prefix(self):
         if not self.url:
@@ -90,7 +76,8 @@ class WebcamConfig:
 
     @property
     def snapshot_url(self):
-        return self.webcam_full_url(self.webcam_config_section.get('snapshot_url') or self.moonraker_webcam_config.get('snapshot_url'))
+        return self.webcam_full_url(
+            self.webcam_config_section.get('snapshot_url') or self.moonraker_webcam_config.get('snapshot_url'))
 
     @property
     def disable_video_streaming(self):
@@ -103,7 +90,7 @@ class WebcamConfig:
     @property
     def target_fps(self):
         try:
-            fps = float( self.webcam_config_section.get('target_fps') or self.moonraker_webcam_config.get('target_fps') )
+            fps = float(self.webcam_config_section.get('target_fps') or self.moonraker_webcam_config.get('target_fps'))
         except:
             fps = 25
         return min(fps, 25)
@@ -114,7 +101,8 @@ class WebcamConfig:
 
     @property
     def stream_url(self):
-        return self.webcam_full_url(self.webcam_config_section.get('stream_url') or self.moonraker_webcam_config.get('stream_url'))
+        return self.webcam_full_url(
+            self.webcam_config_section.get('stream_url') or self.moonraker_webcam_config.get('stream_url'))
 
     @property
     def flip_h(self):
@@ -184,27 +172,11 @@ class Config:
         config = ConfigParser()
         config.read([config_path, ])
 
-        self.moonraker = MoonrakerConfig(
-            host=config.get(
-                'moonraker', 'host',
-                fallback='127.0.0.1'
-            ),
-            port=config.get(
-                'moonraker', 'port',
-                fallback=7125
-            ),
-            api_key=config.get(
-                'moonraker', 'api_key',
-                fallback=None
-            ),
-        )
-
         self.reprapfirmware = RepRapFirmwareConfig(
             host=config.get('reprapfirmware', 'host', fallback='duet3'),
-            port=config.get('reprapfirmware', 'port',fallback=7125),
-            password=config.get('reprapfirmware', 'password',fallback='reprap')
+            port=config.get('reprapfirmware', 'port', fallback=7125),
+            password=config.get('reprapfirmware', 'password', fallback='reprap')
         )
-
 
         self.server = ServerConfig(
             url=config.get(
@@ -228,7 +200,7 @@ class Config:
 
         dest_is_ssl = False
         try:
-            dest_is_ssl = config.getboolean('tunnel', 'dest_is_ssl', fallback=False,)
+            dest_is_ssl = config.getboolean('tunnel', 'dest_is_ssl', fallback=False, )
         except:
             _logger.warn(f'Invalid dest_is_ssl value. Using default.')
 
@@ -256,7 +228,7 @@ class Config:
                 'logging', 'level',
                 fallback=''
             ),
-		)
+        )
 
         self.sentry_opt = config.get(
             'misc', 'sentry_opt',
@@ -264,7 +236,6 @@ class Config:
         )
 
         self._config = config
-
 
     def write(self) -> None:
         with open(self._config_path, 'w') as f:
@@ -274,35 +245,3 @@ class Config:
         self.server.auth_token = auth_token
         self._config.set('server', 'auth_token', auth_token)
         self.write()
-
-    # Adopted from getHeaters, getTemperatureObjects, getTemperatureSensors in mainsail:/src/store/printer/getters.ts
-    def update_heater_mapping(self, heaters):
-        def capwords(s):
-            return ' '.join(elem.capitalize() for elem in s.split(' '))
-
-        for heater in sorted(heaters.get('available_heaters', [])):
-            name = heater
-            name_split = name.split(' ')
-            if len(name_split) > 1 and name_split[0] == 'heater_generic':
-                name = name_split[1]
-
-            if name.startswith('_'):
-                continue
-
-            self._heater_mapping[heater] = name
-
-        for sensor in sorted(heaters.get('available_sensors', [])):
-            name_split = sensor.split(' ')
-            if len(name_split) > 1 and name_split[0] == 'temperature_sensor' and not name_split[1].startswith('_'):
-                self._heater_mapping[sensor] = name_split[1]
-
-
-    def get_mapped_server_heater_name(self, mr_heater_name):
-        return self._heater_mapping.get(mr_heater_name)
-
-    def get_mapped_mr_heater_name(self, server_heater_name):
-        mr_heater_name = list(self._heater_mapping.keys())[list(self._heater_mapping.values()).index(server_heater_name)]
-        return mr_heater_name
-
-    def all_mr_heaters(self):
-         return self._heater_mapping.keys()

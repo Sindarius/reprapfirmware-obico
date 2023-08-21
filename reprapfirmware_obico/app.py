@@ -21,7 +21,7 @@ from .utils import SentryWrapper
 from .webcam_capture import JpegPoster
 from .logger import setup_logging
 from .printer import PrinterState
-from .config import MoonrakerConfig, ServerConfig, Config
+from .config import ServerConfig, Config
 from .server_conn import ServerConn
 from .janus import JanusConn
 from .tunnel import LocalTunnel
@@ -116,6 +116,7 @@ class App(object):
         _cfg = self.model.config._config
         _logger.debug(f'reprapfirmware-obico configurations: { {section: dict(_cfg[section]) for section in _cfg.sections()} }')
         self.rrfconn = get_connection(self.model.config, self.push_event)
+        self.model.printer_state.set_connection(self.rrfconn)  # set the connection to collect printer information
         self.server_conn = ServerConn(self.model.config, self.model.printer_state, self.process_server_msg, self.sentry)
         self.janus = JanusConn(self.model, self.server_conn, self.sentry)
         self.jpeg_poster = JpegPoster(self.model, self.server_conn, self.sentry)
@@ -200,7 +201,6 @@ class App(object):
                 self.sentry.captureException(msg=f'error processing event {event}')
 
     def _process_event(self, event):
-        #_logger.info(event)
         if event.name == 'fatal_error':
             self.stop(cause=event.data.get('exc'))
 
@@ -220,12 +220,6 @@ class App(object):
         elif event.name == 'message':
             if 'error' in event.data:
                 _logger.warning(f'error response from moonraker, {event}')
-
-            elif event.data.get('method', '') in ('notify_klippy_disconnected', 'notify_klippy_shutdown'):
-                # Click "Restart Klipper" or "Firmware restart" (same result) -> notify_klippy_disconnected
-                # Unplug printer USB cable -> notify_klippy_shutdown
-                # clear app's klippy state to indicate the loss of connection to the printer
-                self._received_rrf_update({"status": {}, })
 
             elif event.data.get('result') == 'ok':
                 # printer action response
@@ -256,14 +250,15 @@ class App(object):
 
         def find_current_print_ts():
             cur_job = self.rrfconn.find_most_recent_job()
+            cur_job['start_time'] = round(time.time()*1000) + cur_job.get('duration', '0')
             if cur_job:
-                return int(cur_job.get('duration', '0'))  # todo Chase down what this is doing
+                return int(cur_job['start_time'])  # todo Chase down what this is doing - RRF does not have a start time built in
             else:
                 _logger.error(f'Active job indicate in print_stats: {printer_state.status}, but not in job history: {cur_job}')
                 return None
 
         printer_state.set_current_print_ts(find_current_print_ts())
-        filename = printer_state.status.get('file', {}).get('fileName')
+        filename = printer_state.status.get('job',{}).get('file', {}).get('fileName')
         file_metadata = self.rrfconn.get_file_info(filename=filename)
         printer_state.current_file_metadata = file_metadata
 
@@ -274,22 +269,21 @@ class App(object):
         printer_state.set_current_print_ts(-1)
         printer_state.current_file_metadata = None
 
+#todo This is getitng busted when searching for the file.
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
-        filename = cur_status.get('file', {}).get('fileName')
-        basename = pathlib.Path(filename).name if filename else None  # filename in the response is actually the relative path
+        file = cur_status.get('job', {}).get('file', {})
+        basename = file.get('fileName','').replace('/gcodes/', '')
+
         g_code_data = dict(
-            filename=basename,
             safe_filename=basename,
-            num_bytes=file_metadata.get('file',{}).get('size', 0),
-            agent_signature='ts:{}'.format(file_metadata.get('file',{}).get('lastModified', 0)),
-            url=filename
+            agent_signature='ts:{}'.format(file.get('lastModified')),
             )
+
         resp = self.server_conn.send_http_request('POST', '/api/v1/octo/g_code_files/', timeout=60, data=g_code_data, raise_exception=True)
         return resp.json()['id']
 
 
     def post_print_event(self, print_event):
-        _logger.info(print_event)
         ts = self.model.printer_state.current_print_ts
         if ts == -1:
             raise Exception('current_print_ts is -1 on a print_event, which is not supposed to happen.')
@@ -342,13 +336,14 @@ class App(object):
 
         if cur_state == PrinterState.STATE_OPERATIONAL and prev_state in PrinterState.ACTIVE_STATES:
                 # todo come up with a better way to check final result here.
-                _state = data['status']
+                _state = data['state']['status']
                 if _state == 'cancelled':
                     self.post_print_event(PrinterState.EVENT_CANCELLED)
                     # PrintFailed as well to be consistent with OctoPrint
                     time.sleep(0.5)
                     self.post_print_event(PrinterState.EVENT_FAILED)
                 elif _state == 'idle':
+                    _logger.info("Print Complete")
                     self.post_print_event(PrinterState.EVENT_DONE)
                 elif _state == 'error':
                     self.post_print_event(PrinterState.EVENT_FAILED)
