@@ -17,7 +17,7 @@ import pathlib
 import requests  # type: ignore
 
 from .version import VERSION
-from .utils import SentryWrapper
+from .utils import SentryWrapper, fix_rrf_filename
 from .webcam_capture import JpegPoster
 from .logger import setup_logging
 from .printer import PrinterState
@@ -274,9 +274,9 @@ class App(object):
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
         time.sleep(1)
         file = cur_status.get('job', {}).get('file', {})
-        basename = file.get('fileName','').replace('/gcodes/', '')
+        basename = fix_rrf_filename(file.get('fileName',''))
         if basename == '':
-            basename = file.get('lastFileName','').replace('/gcodes/', '')
+            basename = fix_rrf_filename(file.get('lastFileName',''))
         _logger.info(basename)
         g_code_data = dict(
             safe_filename=basename,

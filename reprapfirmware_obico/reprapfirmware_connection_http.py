@@ -7,6 +7,7 @@ import requests
 import threading
 import time
 import logging
+from .utils import fix_rrf_filename
 
 _logger = logging.getLogger('obico.rrf_http')
 
@@ -167,7 +168,7 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         return
 
     def get_file_info(self, filename: str) -> Dict:
-        data = self.api_get(f"rr_fileinfo?name=/gcodes/{filename.replace('/gcodes/','')}")
+        data = self.api_get(f"rr_fileinfo?name=/gcodes/{fix_rrf_filename(filename)}")
         return data
 
     def upload_file(self, filename: str, data):

@@ -321,3 +321,6 @@ def pi_version():
                 return None
     except:
         return None
+
+def fix_rrf_filename(filename) -> str:
+    return filename.replace('/gcodes/','').replace('0:', '')
