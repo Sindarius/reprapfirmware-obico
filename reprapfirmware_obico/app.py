@@ -340,15 +340,25 @@ class App(object):
 
         if cur_state == PrinterState.STATE_OPERATIONAL and prev_state in PrinterState.ACTIVE_STATES:
                 # todo come up with a better way to check final result here.
+                _job = self.rrfconn.find_most_recent_job()  # lets get the final state of the job
                 _state = data['state']['status']
+                _logger.info(_job)
+                _cancelled = prev_state in [PrinterState.STATE_CANCELLING, PrinterState.EVENT_CANCELLED]
+                _logger.info(_cancelled)
                 if _state == 'cancelled':
                     self.post_print_event(PrinterState.EVENT_CANCELLED)
                     # PrintFailed as well to be consistent with OctoPrint
                     time.sleep(0.5)
                     self.post_print_event(PrinterState.EVENT_FAILED)
                 elif _state == 'idle':
-                    _logger.info("Print Complete")
-                    self.post_print_event(PrinterState.EVENT_DONE)
+                    if _cancelled:
+                        self.post_print_event(PrinterState.EVENT_CANCELLED)
+                        _logger.info('Print Cancelled')
+                        time.sleep(0.5)
+                        self.post_print_event(PrinterState.EVENT_FAILED)
+                    else:
+                        _logger.info("Print Complete")
+                        self.post_print_event(PrinterState.EVENT_DONE)
                 elif _state == 'error':
                     self.post_print_event(PrinterState.EVENT_FAILED)
                 else:
