@@ -75,9 +75,9 @@ class WebcamStreamer:
 
 
     def video_pipeline(self):
-        if not pi_version():
-            _logger.warning('Not running on a Pi. Quitting video_pipeline.')
-            return
+#        if not pi_version():
+#            _logger.warning('Not running on a Pi. Quitting video_pipeline.')
+#            return
 
         try:
             self.ffmpeg_from_mjpeg()
@@ -102,8 +102,9 @@ class WebcamStreamer:
         def h264_encoder():
             test_video = os.path.join(FFMPEG_DIR, 'test-video.mp4')
             FNULL = open(os.devnull, 'w')
-            for encoder in ['h264_omx', 'h264_v4l2m2m']:
+            for encoder in ['h264_omx', 'h264_v4l2m2m','h264_nvmpi']: # todo h264_nvmpi documentation for jetson nano https://github.com/jocover/jetson-ffmpeg
                 ffmpeg_cmd = '{} -re -i {} -pix_fmt yuv420p -vcodec {} -an -f rtp rtp://localhost:8014?pkt_size=1300'.format(FFMPEG, test_video, encoder)
+                _logger.info(ffmpeg_cmd)
                 _logger.debug('Popen: {}'.format(ffmpeg_cmd))
                 ffmpeg_test_proc = psutil.Popen(ffmpeg_cmd.split(' '), stdout=FNULL, stderr=FNULL)
                 if ffmpeg_test_proc.wait() == 0:

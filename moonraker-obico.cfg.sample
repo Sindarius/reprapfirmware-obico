@@ -26,7 +26,7 @@ disable_video_streaming = False
 # aspect_ratio_169 = False
 
 [logging]
-path = /home/pi/printer_data/config/moonraker-obico.log
+path = /home/pi/printer_data/config/reprap-obico.log
 level = INFO
 
 [tunnel]

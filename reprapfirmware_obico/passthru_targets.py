@@ -79,7 +79,6 @@ class Printer:
         self.server_conn = server_conn
 
     def call_printer_api_with_state_transition(self, printer_action, transient_state, timeout=5*60):
-        _logger.info("PING")
         def _call_printer_api():
             resp_data = printer_action()
 
@@ -174,12 +173,12 @@ class RepRapFirmwareApi:
             self.sentry = sentry
 
         def fix_file_structure(self, fileentry):
-            #date = datetime.strptime(fileentry['date'],'%Y-%m-%dT%H:%M:%S')
-            return {'filename': fileentry['name'], 'size': fileentry['size'], 'modified': '100000', 'permissions': 'rw'}
+            dt_obj = datetime.strptime(fileentry['date'],'%Y-%m-%dT%H:%M:%S')
+            return {'filename': fileentry['name'], 'size': fileentry['size'], 'modified': dt_obj.timestamp(), 'permissions': 'rw'}
 
         def fix_dir_structure(self, fileentry):
-            #date = datetime.strptime(fileentry['date'], '%Y-%m-%dT%H:%M:%S')
-            return {'dirname': fileentry['name'], 'size': fileentry['size'], 'modified': '100000', 'permissions': 'rw'}
+            dt_obj = datetime.strptime(fileentry['date'], '%Y-%m-%dT%H:%M:%S')
+            return {'dirname': fileentry['name'], 'size': fileentry['size'], 'modified': dt_obj.timestamp(), 'permissions': 'rw'}
         def call_api(self, verb='get', **kwargs):
             if not self.rrfconn:
                 return None, 'Printer is not connected!'
@@ -187,19 +186,23 @@ class RepRapFirmwareApi:
             error = None
 
             _logger.info(self.func)
-
             if self.func == 'server/files/directory':
-                files = self.rrfconn.get_file_list(kwargs['path']).get('files', {})
-                _logger.info(files)
-                ret_files = []
-                ret_dir = []
-                for f in files:
-                    if f['type'] == 'f':
-                        ret_files.append(self.fix_file_structure(f))
-                    else:
-                        ret_dir.append(self.fix_dir_structure(f))
-                ret_value = {**{'dirs': ret_dir}, **{'files': ret_files}}
+                ret_value = self.get_files(kwargs, ret_value)
             elif self.func == 'printer/print/start':
                 self.rrfconn.start_print(f'/gcodes{kwargs["filename"]}')
+            elif self.func == 'printer/gcode/script':
+                ret_Value = []  #
 
             return ret_value, error
+
+        def get_files(self, kwargs, ret_value):
+            files = self.rrfconn.get_file_list(kwargs['path']).get('files', {})
+            ret_files = []
+            ret_dir = []
+            for f in files:
+                if f['type'] == 'f':
+                    ret_files.append(self.fix_file_structure(f))
+                else:
+                    ret_dir.append(self.fix_dir_structure(f))
+            ret_value = {**{'dirs': ret_dir}, **{'files': ret_files}}
+            return ret_value

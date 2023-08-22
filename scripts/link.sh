@@ -63,7 +63,7 @@ The changes we have made to your system:
 - System service: /etc/systemd/system/${OBICO_SERVICE_NAME}
 - Config file: ${OBICO_CFG_FILE}
 - Update file: ${OBICO_UPDATE_FILE}
-- Inserted "[include moonraker-obico-update.cfg]" in the "moonraker.conf" file
+- Inserted "[include reprapfirmware-obico-update.cfg]" in the "moonraker.conf" file
 - Log file: ${OBICO_LOG_FILE}
 
 To remove Obico for Klipper, run:

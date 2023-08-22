@@ -295,6 +295,13 @@ done
 
 
 welcome
+
+# Build out defaults that do not exist in RRF but are required for plugin
+mkdir -p ~/printer_data/config
+mkdir -p ~/printer_data/logs
+touch ~/printer_data/config/moonraker.conf
+
+
 ensure_not_octoprint
 ensure_deps
 

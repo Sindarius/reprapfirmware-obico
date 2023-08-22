@@ -4,7 +4,7 @@ KLIPPER_CONF_DIR="$1"
 OBICO_ENV="$2"
 TSD_MR_CONFIG="${KLIPPER_CONF_DIR}/config.ini"
 BK_TSD_MR_CONFIG="${KLIPPER_CONF_DIR}/retired-tsd-moonraker-config.ini"
-OBICO_MR_CONFIG="${KLIPPER_CONF_DIR}/moonraker-obico.cfg"
+OBICO_MR_CONFIG="${KLIPPER_CONF_DIR}/reprapfirmware-obico.cfg"
 
 if [[ -f "${TSD_MR_CONFIG}" ]]; then
 
