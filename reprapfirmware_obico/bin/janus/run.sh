@@ -7,11 +7,11 @@ echo $JANUS_ROOT_DIR
 RUNTIME_JANUS_ETC_DIR="${JANUS_ROOT_DIR}/runtime/etc/janus"
 
 #used for raspberry pi
-#. "${JANUS_ROOT_DIR}/../utils.sh"
-#PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/debian.$( debian_variant )"
+. "${JANUS_ROOT_DIR}/../utils.sh"
+PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/debian.$( debian_variant )"
 
 #used for jetson nano
-PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/ubuntu.18.04"
+#PRECOMPILED_DIR="${JANUS_ROOT_DIR}/precomplied/ubuntu.18.04"
 
 if [ -d "${PRECOMPILED_DIR}" ]; then
   echo "Entering THEN"
