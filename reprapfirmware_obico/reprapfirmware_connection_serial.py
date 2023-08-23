@@ -29,7 +29,8 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
 
     # Use M409 to request data from Object Model
     def api_get(self, command):
-        with self.mutex:
+        try:
+            self.mutex.acquire(blocking=True)
             if self.serial_connection is None or not self.serial_connection.is_open:
                 return {}
             b = bytes(f'{command}\n','utf-8')
@@ -48,18 +49,30 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                     result = []
                 retry += 1
                 self.serial_connection.flush()
-            return result
+        finally:
+            self.mutex.release()
+        return result
 
     def api_upload(self, command, data):
-        with self.mutex:
+        try:
+            self.mutex.acquire()
             if self.serial_connection is None or not self.serial_connection.is_open:
                 return False
             b = bytes(f'{command}\n', 'utf-8')
             self.serial_connection.write(b)
-            #  data = bytes(data,'utf-8')
-            self.serial_connection.writelines(data)
-            self.serial_connection.write('<!-- **EoF** -->\n')
-            return True
+            logging.info(type(data))
+            self.serial_connection.write(data)
+            self.serial_connection.write(b'<!-- **EoF** -->\n')
+            time.sleep(1)
+            self.serial_connection.flush()
+            self.serial_connection.reset_output_buffer()
+            self.serial_connection.reset_input_buffer()
+            if self.serial_connection.inWaiting() > 0:
+                self.serial_connection.readall()  # read what's there and toss it
+
+        finally:
+            self.mutex.release()
+        return True
 
     def find_all_heaters(self):
         return
@@ -101,6 +114,10 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                     try:
                         _logger.info(f'Attempting serial connection to {self.app_config.reprapfirmware.serial_port}')
                         self.serial_connection = Serial(baudrate=115200, port=self.app_config.reprapfirmware.serial_port, timeout=1)  # attempt to reconnect
+                        self.serial_connection.write(b'<!-- **EoF** -->\n') #incase we got stuck in a write
+                        self.serial_connection.reset_output_buffer()
+                        self.serial_connection.reset_input_buffer()
+                        self.serial_connection.flush()
                         #  self.serial_connection.open()
                         self.reloadSettings = True
                     except Exception as e:
@@ -115,7 +132,8 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                     self.reload_configuration()
                     self.reloadSettings = False
 
-                self.request_status_update()
+                if not self.mutex.locked():
+                   self.request_status_update()
             except Exception as e:
                 _logger.warning("Unable to retrieve current status.")
                 _logger.warning(e)
