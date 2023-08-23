@@ -34,7 +34,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
             if self.serial_connection is None or not self.serial_connection.is_open:
                 _logger.warning("Connection not open")
                 return {}
-            #_logger.debug(f'api_get command : {command}')
+            _logger.debug(f'RRF Serial api_get command : {command}')
             b = bytes(f'{command}\n','utf-8')
             self.serial_connection.write(b) #write the bytes
 

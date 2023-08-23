@@ -260,7 +260,7 @@ class App(object):
 
         def find_current_print_ts():
             cur_job = self.rrfconn.find_most_recent_job()
-            cur_job['start_time'] = round(time.time()*1000) + cur_job.get('duration', '0')
+            cur_job['start_time'] = round(time.time()) + cur_job.get('duration', '0')
             if cur_job:
                 return int(cur_job['start_time'])  # todo Chase down what this is doing - RRF does not have a start time built in
             else:
@@ -373,6 +373,8 @@ class App(object):
                         self.post_print_event(PrinterState.EVENT_DONE)
                 elif _state == 'error':
                     self.post_print_event(PrinterState.EVENT_FAILED)
+                elif _state == 'busy':
+                    _logger.info('Printer busy')
                 else:
                     # FIXME
                     _logger.error(
