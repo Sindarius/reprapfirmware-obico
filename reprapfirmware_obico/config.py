@@ -4,6 +4,7 @@ import re
 from configparser import ConfigParser
 from urllib.parse import urlparse
 import logging
+from enum import IntEnum
 from enum import Enum
 
 from .utils import SentryWrapper
@@ -11,7 +12,7 @@ from .utils import SentryWrapper
 _logger = logging.getLogger('obico.config')
 
 
-class RRFConnectionTypes(Enum):
+class RRFConnectionTypes(IntEnum):
     HTTP = 0
     REST = 1
     Serial = 2
@@ -22,7 +23,8 @@ class RepRapFirmwareConfig:
     host: str = 'duet3'
     port: int = 80
     password: Optional[str] = None
-    connectiontype: RRFConnectionTypes = RRFConnectionTypes.HTTP
+    connection_type: int = 0
+    serial_port: str = "/dev/ttyACM0"
 
     def http_address(self):
         if not self.host or not self.port:
@@ -175,7 +177,9 @@ class Config:
         self.reprapfirmware = RepRapFirmwareConfig(
             host=config.get('reprapfirmware', 'host', fallback='duet3'),
             port=config.get('reprapfirmware', 'port', fallback=7125),
-            password=config.get('reprapfirmware', 'password', fallback='reprap')
+            password=config.get('reprapfirmware', 'password', fallback='reprap'),
+            connection_type=int(config.get('reprapfirmware', 'mode', fallback=0)),
+            serial_port =config.get('reprapfirmware', 'serial_port', fallback='/dev/ttyACM0')
         )
 
         self.server = ServerConfig(

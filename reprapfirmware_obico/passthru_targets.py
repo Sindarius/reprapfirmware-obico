@@ -47,13 +47,15 @@ class FileDownloader:
                 time.sleep(1)
                 filepath_on_rrf = f'/gcodes/{safe_filename}'
                 file_metadata = self.rrfconn.get_file_info(filename=safe_filename)
+                _logger.info('Metadata Results..................')
+                _logger.info(file_metadata)
                 file_metadata['url'] = g_code_file['url']
 
                 basename = safe_filename  # filename in the response is actually the relative path
 
                 g_code_data = dict(
                     safe_filename=basename,
-                    agent_signature='ts:{}'.format(file_metadata['lastModified']),
+                    agent_signature='ts:{}'.format(file_metadata.get('lastModified', 0)),
                     )
 
                 # PATCH /api/v1/octo/g_code_files/{}/ should be called before printer/print/start call so that the file can be properly matched to the server record at the moment of PrintStarted Event

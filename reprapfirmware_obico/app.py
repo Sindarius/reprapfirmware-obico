@@ -116,6 +116,7 @@ class App(object):
 
         _cfg = self.model.config._config
         _logger.debug(f'reprapfirmware-obico configurations: { {section: dict(_cfg[section]) for section in _cfg.sections()} }')
+        _logger.info(self.model.config.reprapfirmware)
         self.rrfconn = get_connection(self.model.config, self.push_event)
         self.model.printer_state.set_connection(self.rrfconn)  # set the connection to collect printer information
         self.server_conn = ServerConn(self.model.config, self.model.printer_state, self.process_server_msg, self.sentry)
@@ -157,8 +158,15 @@ class App(object):
         janus_thread.daemon = True
         janus_thread.start()
 
+        def handler():
+            self.rrfconn.stop()
+
+        signal.signal(signal.SIGTERM, handler)
+
         try:
             thread.join()
+        except KeyboardInterrupt:
+            handler()
         except Exception:
             self.sentry.captureException()
 
@@ -172,7 +180,7 @@ class App(object):
         if self.server_conn:
             self.server_conn.close()
         if self.rrfconn:
-            self.rrfconn.close()
+            self.rrfconn.stop()
         if self.janus:
             self.janus.shutdown()
 
