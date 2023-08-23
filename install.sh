@@ -70,14 +70,14 @@ We need info about your Moonraker. If you are not sure, just leave them as defau
 
 EOF
 
-  read -p "Moonraker host: " -e -i "${MOONRAKER_HOST}" user_input
+  read -p "RepRapFirmware host: " -e -i "${MOONRAKER_HOST}" user_input
   eval MOONRAKER_HOST="${user_input}"
-  read -p "Moonraker port: " -e -i "${MOONRAKER_PORT}" user_input
+  read -p "RepRapFirmware port: " -e -i "${MOONRAKER_PORT}" user_input
   eval MOONRAKER_PORT="${user_input}"
-  read -p "Moonraker config file: " -e -i "${MOONRAKER_CONFIG_FILE}" user_input
+  read -p "RepRapFirmware config file: " -e -i "${MOONRAKER_CONFIG_FILE}" user_input
   eval MOONRAKER_CONFIG_FILE="${user_input}"
   MOONRAKER_CONF_DIR=$(dirname "${MOONRAKER_CONFIG_FILE}")
-  read -p "Klipper log directory: " -e -i "${MOONRAKER_LOG_DIR}" user_input
+  read -p "RepRapFirmware log directory: " -e -i "${MOONRAKER_LOG_DIR}" user_input
   eval MOONRAKER_LOG_DIR="${user_input}"
   echo ""
 }
@@ -139,10 +139,16 @@ EOF
 [server]
 url = ${OBICO_SERVER}
 
-[moonraker]
+#use local connection
+# auth_token: <let the link command set this, see more in readme>
+# sentry_opt: out or in
+
+[reprapfirmware]
 host = ${MOONRAKER_HOST}
 port = ${MOONRAKER_PORT}
-# api_key = <grab one or set trusted hosts in moonraker>
+password = reprap
+mode = 0
+serial_port=/dev/ttyACM0
 
 [webcam]
 disable_video_streaming = False
@@ -153,12 +159,12 @@ disable_video_streaming = False
 # Lower target_fps if ffmpeg is using too much CPU. Capped at 25 for Pro users (including self-hosted) and 5 for Free users
 # target_fps = 25
 #
-# snapshot_url = http://127.0.0.1:8080/?action=snapshot
-# stream_url = http://127.0.0.1:8080/?action=stream
-# flip_h = False
-# flip_v = False
-# rotation = 0
-# aspect_ratio_169 = False
+snapshot_url = http://127.0.0.1:8080/?action=snapshot
+stream_url = http://127.0.0.1:8080/?action=stream
+flip_h = False
+flip_v = False
+rotate_90 = False
+aspect_ratio_169 = False
 
 [logging]
 path = ${OBICO_LOG_FILE}

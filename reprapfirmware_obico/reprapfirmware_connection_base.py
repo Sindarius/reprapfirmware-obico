@@ -88,6 +88,7 @@ class RepRapFirmware_Connection_Base(ABC):
     def get_file_list(self, dir):
         pass
 
+    @abstractmethod
     def get_current_heater_state(self) -> List[HeaterModel]:
         pass
 
