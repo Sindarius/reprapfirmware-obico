@@ -132,12 +132,14 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                     self.reload_configuration()
                     self.reloadSettings = False
 
-                if not self.mutex.locked():
+                if not self.mutex.locked():  # skip status query if we are doing another serial request action
                    self.request_status_update()
-            except Exception as e:
+            except Exception as e:  # if we fail to get the current status it's possible our connection needs to be reset.
                 _logger.warning("Unable to retrieve current status.")
                 _logger.warning(e)
                 _logger.error(traceback.print_exc())
+                self.serial_connection.close()
+                self.serial_connection = None
                 self.reloadSettings = True
             time.sleep(1)
 
