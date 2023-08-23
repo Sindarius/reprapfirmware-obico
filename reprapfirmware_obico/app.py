@@ -269,7 +269,10 @@ class App(object):
 
         printer_state.set_current_print_ts(find_current_print_ts())
         filename = printer_state.status.get('job',{}).get('file', {}).get('fileName')
+        _logger.info(filename)
         file_metadata = self.rrfconn.get_file_info(filename=filename)
+        _logger.info('File Metadata')
+        _logger.info(file_metadata)
         printer_state.current_file_metadata = file_metadata
 
         # So that Obico server can associate the current print with a gcodefile record in the DB
@@ -287,10 +290,9 @@ class App(object):
         basename = fix_rrf_filename(file.get('fileName',''))
         if basename == '':
             basename = fix_rrf_filename(file.get('lastFileName',''))
-        _logger.info(basename)
         g_code_data = dict(
             safe_filename=basename,
-            agent_signature='ts:{}'.format(file_metadata.get('lastModified')),
+            agent_signature='ts:{}'.format(file_metadata.get('lastModified', 0)),
             )
 
         resp = self.server_conn.send_http_request('POST', '/api/v1/octo/g_code_files/', timeout=60, data=g_code_data, raise_exception=True)

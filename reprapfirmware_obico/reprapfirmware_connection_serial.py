@@ -28,23 +28,26 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         return
 
     # Use M409 to request data from Object Model
-    def api_get(self, command):
+    def api_get(self, command, waitresponse = True):
         try:
-            self.mutex.acquire(blocking=True)
+            self.mutex.acquire(blocking=True, timeout=-1)
             if self.serial_connection is None or not self.serial_connection.is_open:
+                _logger.warning("Connection not open")
                 return {}
+            #_logger.debug(f'api_get command : {command}')
             b = bytes(f'{command}\n','utf-8')
             self.serial_connection.write(b) #write the bytes
 
             result = []
             retry = 0
-            while retry < 5 and result == []:
+            while retry < 50 and len(result) == 0 and waitresponse:
                 resp = self.serial_connection.readline() #get the response
-                if len(resp) < 10:
+                if len(resp) < 20:
                     retry += 1
                     continue
                 try:
                     result = json.loads(resp.decode())
+                    self.serial_connection.flush()
                 except: #  Likey not a json result -- could be ok acknowledgement just throw away for now
                     result = []
                 retry += 1
@@ -55,20 +58,20 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
 
     def api_upload(self, command, data):
         try:
-            self.mutex.acquire()
+            self.mutex.acquire(blocking=True, timeout=-1)
             if self.serial_connection is None or not self.serial_connection.is_open:
                 return False
             b = bytes(f'{command}\n', 'utf-8')
             self.serial_connection.write(b)
-            logging.info(type(data))
             self.serial_connection.write(data)
             self.serial_connection.write(b'<!-- **EoF** -->\n')
             time.sleep(1)
             self.serial_connection.flush()
+            if self.serial_connection.inWaiting() > 0:
+                _logger.info("Dumping data")
+                self.serial_connection.readall()  # read what's there and toss it
             self.serial_connection.reset_output_buffer()
             self.serial_connection.reset_input_buffer()
-            if self.serial_connection.inWaiting() > 0:
-                self.serial_connection.readall()  # read what's there and toss it
 
         finally:
             self.mutex.release()
@@ -102,6 +105,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         return
 
     def stop(self):
+        _logger.info('Stopping thread')
         if self.serial_connection is not None and not self.serial_connection.is_open:
             self.serial_connection.close()
         self.serial_connection = None
@@ -114,11 +118,17 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                     try:
                         _logger.info(f'Attempting serial connection to {self.app_config.reprapfirmware.serial_port}')
                         self.serial_connection = Serial(baudrate=115200, port=self.app_config.reprapfirmware.serial_port, timeout=1)  # attempt to reconnect
+                        if not self.serial_connection.is_open:
+                            self.serial_connection.open()
+                        if self.serial_connection.is_open:
+                            _logger.info("Serial connection is open.")
+                            if self.mutex.locked():
+                                self.mutex.release() #force release the lock
                         self.serial_connection.write(b'<!-- **EoF** -->\n') #incase we got stuck in a write
                         self.serial_connection.reset_output_buffer()
                         self.serial_connection.reset_input_buffer()
                         self.serial_connection.flush()
-                        #  self.serial_connection.open()
+
                         self.reloadSettings = True
                     except Exception as e:
                         _logger.error('Unable to connect to serial connection')
@@ -190,31 +200,31 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         return dict()
 
     def request_home(self, axes) -> Dict:
-        self.api_get('G28')
+        self.api_get('G28', False)
 
     def start_print(self, filename: str):
         _logger.info(f'Starting Print {filename}')
-        resp = self.api_get(f'M32 "{filename}"')
+        resp = self.api_get(f'M32 "{filename}"', False)
         return
 
     def pause_print(self):
         _logger.debug('Pause print')
-        self.api_get('M25')
+        self.api_get('M25', False)
         return
 
     def resume_print(self):
         _logger.debug('Resume print')
-        self.api_get('M24')
+        self.api_get('M24', False)
         return
 
     def cancel_print(self):
         _logger.info('Cancel Print')
         self.pause_print()
-        self.api_get('M0')
+        self.api_get('M0', False)
         return
 
     def get_file_info(self, filename: str) -> Dict:
-        data = self.api_get(f'M36"/gcodes/{fix_rrf_filename(filename)}"')
+        data = self.api_get(f'M36 "/gcodes/{fix_rrf_filename(filename)}"')
         return data
 
     def upload_file(self, filename: str, data):
