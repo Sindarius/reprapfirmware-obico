@@ -132,6 +132,8 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                         self.reloadSettings = True
                     except Exception as e:
                         _logger.error('Unable to connect to serial connection')
+                        _logger.error('You may have to issue this command to grant permissions to your account to access the serial port')
+                        _logger.error('sudo usermod -a -G dialout <username>')
                         _logger.error(e)
                         self.serial_connection.close()
                         self.serial_connection = None
