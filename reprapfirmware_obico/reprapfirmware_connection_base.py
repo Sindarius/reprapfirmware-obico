@@ -92,4 +92,8 @@ class RepRapFirmware_Connection_Base(ABC):
     def get_current_heater_state(self) -> List[HeaterModel]:
         pass
 
+    @abstractmethod
+    def execute_gcode(self, command: str):
+        pass
+
 

@@ -27,34 +27,31 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         self.reloadSettings = True
         return
 
-    # Use M409 to request data from Object Model
-    def api_get(self, command, waitresponse = True):
+    def api_get(self, command, waitresponse= True):
         try:
-            self.mutex.acquire(blocking=True, timeout=-1)
+            _logger.info(f'Command {command}')
+            self.mutex.acquire(blocking=True, timeout=60)
             if self.serial_connection is None or not self.serial_connection.is_open:
                 _logger.warning("Connection not open")
                 return {}
             _logger.debug(f'RRF Serial api_get command : {command}')
+            self.serial_connection.reset_input_buffer()
             b = bytes(f'{command}\n','utf-8')
             self.serial_connection.write(b) #write the bytes
-
-            result = []
-            retry = 0
-            while retry < 50 and len(result) == 0 and waitresponse:
-                resp = self.serial_connection.readline() #get the response
-                if len(resp) < 20:
-                    retry += 1
-                    continue
-                try:
-                    result = json.loads(resp.decode())
-                    self.serial_connection.flush()
-                except: #  Likey not a json result -- could be ok acknowledgement just throw away for now
-                    result = []
-                retry += 1
-                self.serial_connection.flush()
+            result = b''
+            while True:
+                data = self.serial_connection.readline()
+                if data != b'ok\n':  #data != b'' and data != b'\n':
+                    result += data
+                else:
+                    break
+            try:
+                json_data = json.loads(result.decode()) #attempt to decode the results into json.
+                return json_data
+            except:
+                return result  # data likely a string return those results instead
         finally:
             self.mutex.release()
-        return result
 
     def api_upload(self, command, data):
         try:
@@ -123,13 +120,9 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                         if self.serial_connection.is_open:
                             _logger.info("Serial connection is open.")
                             if self.mutex.locked():
-                                self.mutex.release() #force release the lock
-                        self.serial_connection.write(b'<!-- **EoF** -->\n') #incase we got stuck in a write
-                        self.serial_connection.reset_output_buffer()
-                        self.serial_connection.reset_input_buffer()
-                        self.serial_connection.flush()
-
-                        self.reloadSettings = True
+                                self.mutex.release()  # force release the lock
+                            self.api_get('<!-- **EoF** -->')  # incase we got stuck in a write when it died
+                            self.reloadSettings = True
                     except Exception as e:
                         _logger.error('Unable to connect to serial connection')
                         _logger.error('You may have to issue this command to grant permissions to your account to access the serial port')
@@ -153,7 +146,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                 self.serial_connection.close()
                 self.serial_connection = None
                 self.reloadSettings = True
-            time.sleep(1)
+            time.sleep(5) #add a delay to slo down noise
 
     def request_status_update(self):
         rrf_state = self.api_get('M409 K"state"')['result']
@@ -244,3 +237,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
 
     def request_set_temperature(self):
         return
+
+    def execute_gcode(self, command: str):
+        data = self.api_get(command)
+        return data, None

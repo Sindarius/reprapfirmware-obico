@@ -123,6 +123,7 @@ class PrinterState:
                     ),
                     temperature=dict(dict(profiles=self.thermal_presets)),
                     agent=dict(
+                        #Must be moonraker_obico until server recognizes reprap
                         #name="reprapfirmware_obico",
                         name= "moonraker_obico",
                         version=VERSION,

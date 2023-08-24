@@ -192,9 +192,9 @@ class RepRapFirmwareApi:
                 ret_value = self.get_files(kwargs, ret_value)
             elif self.func == 'printer/print/start':
                 self.rrfconn.start_print(f'/gcodes{kwargs["filename"]}')
-            elif self.func == 'printer/gcode/script':
-                ret_Value = []  #
-
+            elif self.func == 'printer/gcode/script' and kwargs['script'] is not None:
+                command = kwargs['script'].replace("['", "").replace("]'", "")
+                ret_value = self.rrfconn.execute_gcode(command)
             return ret_value, error
 
         def get_files(self, kwargs, ret_value):

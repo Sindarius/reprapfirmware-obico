@@ -183,3 +183,7 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
     def get_current_heater_state(self):
         self.update_heaters()
         return self.heaters
+
+    def execute_gcode(self, command: str):
+        data = self.api_get(f'rr_gcode?gcode={command}')
+        return data
