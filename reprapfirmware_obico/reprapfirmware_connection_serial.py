@@ -198,7 +198,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         for axis in axes_dict:
             gcode += axis + f"{axes_dict[axis]}"
         gcode += "G90\nM121"
-        self.api_get(gcode)
+        self.api_get(gcode, False)
         return dict()
 
     def request_home(self, axes) -> Dict:

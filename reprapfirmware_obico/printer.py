@@ -94,7 +94,7 @@ class PrinterState:
             'error': PrinterState.STATE_OPERATIONAL,
             # state is "error" when printer quits a print due to an error, but operational
             'simulating': PrinterState.STATE_PRINTING,
-            'busy': PrinterState.STATE_PAUSING,
+            'busy': PrinterState.STATE_OPERATIONAL,
             'changingTool': PrinterState.STATE_OPERATIONAL,
             'resuming': PrinterState.STATE_RESUMING,
             'cancelling':PrinterState.STATE_CANCELLING
