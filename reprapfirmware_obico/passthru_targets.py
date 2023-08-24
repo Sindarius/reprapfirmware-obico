@@ -47,8 +47,6 @@ class FileDownloader:
                 time.sleep(1)
                 filepath_on_rrf = f'/gcodes/{safe_filename}'
                 file_metadata = self.rrfconn.get_file_info(filename=safe_filename)
-                _logger.info('Metadata Results..................')
-                _logger.info(file_metadata)
                 file_metadata['url'] = g_code_file['url']
 
                 basename = safe_filename  # filename in the response is actually the relative path
@@ -187,7 +185,7 @@ class RepRapFirmwareApi:
             ret_value = []
             error = None
 
-            _logger.info(self.func)
+            _logger.debug(f'Execute func {self.func}')
             if self.func == 'server/files/directory':
                 ret_value = self.get_files(kwargs, ret_value)
             elif self.func == 'printer/print/start':

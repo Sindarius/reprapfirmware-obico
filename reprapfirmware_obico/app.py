@@ -116,7 +116,6 @@ class App(object):
 
         _cfg = self.model.config._config
         _logger.debug(f'reprapfirmware-obico configurations: { {section: dict(_cfg[section]) for section in _cfg.sections()} }')
-        _logger.info(self.model.config.reprapfirmware)
         self.rrfconn = get_connection(self.model.config, self.push_event)
         self.model.printer_state.set_connection(self.rrfconn)  # set the connection to collect printer information
         self.server_conn = ServerConn(self.model.config, self.model.printer_state, self.process_server_msg, self.sentry)
@@ -269,10 +268,7 @@ class App(object):
 
         printer_state.set_current_print_ts(find_current_print_ts())
         filename = printer_state.status.get('job',{}).get('file', {}).get('fileName')
-        _logger.info(filename)
         file_metadata = self.rrfconn.get_file_info(filename=filename)
-        _logger.info('File Metadata')
-        _logger.info(file_metadata)
         printer_state.current_file_metadata = file_metadata
 
         # So that Obico server can associate the current print with a gcodefile record in the DB
@@ -418,12 +414,8 @@ class App(object):
 
             error = None
             try:
-                _logger.info(passthru)
                 target = getattr(self, 'target_' + passthru.get('target'))
-                _logger.info(target)
-                _logger.info(passthru['func'])
                 func = getattr(target, passthru['func'], None)
-                _logger.info(func)
                 ret_value, error = func(*(passthru.get("args", [])), **(passthru.get("kwargs", {})))
             except AttributeError:
                 error = 'Request not supported. Please make sure moonraker-obico is updated to the latest version. If moonraker-obico is already up to date and you still see this error, please contact Obico support at support@obico.io'

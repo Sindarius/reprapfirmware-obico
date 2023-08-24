@@ -13,7 +13,6 @@ from .utils import fix_rrf_filename
 
 _logger = logging.getLogger('obico.rrf_serial')
 
-
 class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
     def __init__(self, app_config, on_event):
         self.id: str = 'rrfconn'
@@ -25,22 +24,25 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         self.on_event = on_event
         self.serial_connection : Optional[Serial] = None
         self.reloadSettings = True
+        self.heater_strings = [b'T0:', b'B:']
         return
 
     def api_get(self, command, waitresponse= True):
         try:
-            _logger.info(f'Command {command}')
             self.mutex.acquire(blocking=True, timeout=60)
             if self.serial_connection is None or not self.serial_connection.is_open:
                 _logger.warning("Connection not open")
                 return {}
             _logger.debug(f'RRF Serial api_get command : {command}')
-            self.serial_connection.reset_input_buffer()
+            self.serial_connection.readall() #empty out the buffer before we issue a command
             b = bytes(f'{command}\n','utf-8')
             self.serial_connection.write(b) #write the bytes
             result = b''
             while True:
                 data = self.serial_connection.readline()
+                #discard periodic heater messages
+                if all(s in data for s in self.heater_strings):
+                    continue
                 if data != b'ok\n':  #data != b'' and data != b'\n':
                     result += data
                 else:
@@ -49,7 +51,8 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                 json_data = json.loads(result.decode()) #attempt to decode the results into json.
                 return json_data
             except:
-                return result  # data likely a string return those results instead
+                _logger.info(result)
+                return result.decode()  # data likely a string return those results instead
         finally:
             self.mutex.release()
 
@@ -146,7 +149,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                 self.serial_connection.close()
                 self.serial_connection = None
                 self.reloadSettings = True
-            time.sleep(5) #add a delay to slo down noise
+            time.sleep(1)
 
     def request_status_update(self):
         rrf_state = self.api_get('M409 K"state"')['result']
@@ -239,5 +242,8 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         return
 
     def execute_gcode(self, command: str):
-        data = self.api_get(command)
-        return data, None
+        try:
+            data = self.api_get(command)
+            return data, False
+        except:
+            return 'Error executing gcode', True
