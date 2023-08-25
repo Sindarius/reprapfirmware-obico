@@ -6,7 +6,10 @@ This is a RepRapFirmware plugin that enables the RepRapFirmware-based 3D printer
 
 [Obico](https://www.obico.io) is a community-built, open-source smart 3D printing platform used by makers, enthusiasts, and tinkerers around the world.
 
- [RepRapFirmware](https://github.com/Duet3D/RepRapFirmware/wiki) RepRapFirmware is a comprehensive motion control firmware intended primarily for controlling 3D printers, but with applications in laser engraving/cutting and CNC too
+[RepRapFirmware](https://github.com/Duet3D/RepRapFirmware/wiki) RepRapFirmware is a comprehensive motion control firmware intended primarily for controlling 3D printers, but with applications in laser engraving/cutting and CNC too
+
+# Speical Note
+While this plugin runs on a Raspberry Pi it does not require Duet Software Framework (SBC Mode) to function. You can set this up on a pi and point to the standalone printers IP address in the configuration.
 
 # Installation
 
@@ -24,8 +27,7 @@ This is a RepRapFirmware plugin that enables the RepRapFirmware-based 3D printer
     PATH="$PATH:$HOME/.local/bin"
 #### 4) Log out of SSH/Console and rerun installation
 
-# Installation of Crowsnest (May not work on current DSF image_2023-04-12-DuetPi)
-I recommend installation of Crowsnest to get the webcam stream up and running
+# Installation of Crowsnest (Does not work on current DSF image_2023-04-12-DuetPi skip to uStreamer)
 
     cd ~
     git clone https://github.com/mainsail-crew/crowsnest.git
