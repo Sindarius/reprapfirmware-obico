@@ -75,7 +75,7 @@ class PrinterDiscovery(object):
             arch=platform.uname()[4][:253],
             rpi_model=read('/proc/device-tree/model')[:253],
             plugin_version=VERSION,
-            agent='Obico for Klipper',
+            agent='Obico for Klipper', #Can't rename this yet
         )
 
         if not host_or_ip:

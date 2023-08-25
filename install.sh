@@ -11,7 +11,7 @@ MOONRAKER_CONF_DIR="${HOME}/printer_data/config"
 MOONRAKER_CONFIG_FILE="${MOONRAKER_CONF_DIR}/moonraker.conf"
 MOONRAKER_LOG_DIR="${HOME}/printer_data/logs"
 MOONRAKER_HOST="127.0.0.1"
-MOONRAKER_PORT="7125"
+MOONRAKER_PORT="80"
 OBICO_SERVICE_NAME="reprapfirmware-obico"
 OBICO_REPO="https://github.com/sindarius/reprapfirmware-obico.git"
 CURRENT_USER=${USER}
@@ -74,8 +74,8 @@ EOF
   eval MOONRAKER_HOST="${user_input}"
   read -p "RepRapFirmware port: " -e -i "${MOONRAKER_PORT}" user_input
   eval MOONRAKER_PORT="${user_input}"
-  read -p "RepRapFirmware config file: " -e -i "${MOONRAKER_CONFIG_FILE}" user_input
-  eval MOONRAKER_CONFIG_FILE="${user_input}"
+  #read -p "RepRapFirmware config file: " -e -i "${MOONRAKER_CONFIG_FILE}" user_input
+  #eval MOONRAKER_CONFIG_FILE="${user_input}"
   MOONRAKER_CONF_DIR=$(dirname "${MOONRAKER_CONFIG_FILE}")
   read -p "RepRapFirmware log directory: " -e -i "${MOONRAKER_LOG_DIR}" user_input
   eval MOONRAKER_LOG_DIR="${user_input}"
@@ -259,7 +259,7 @@ unknown_error() {
 uninstall() {
   cat <<EOF
 
-To uninstall Obico for Klipper, please run:
+To uninstall Obico for RepRapFirmware, please run:
 
 sudo systemctl stop "${OBICO_SERVICE_NAME}"
 sudo systemctl disable "${OBICO_SERVICE_NAME}"

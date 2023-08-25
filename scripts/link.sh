@@ -66,7 +66,7 @@ The changes we have made to your system:
 - Inserted "[include reprapfirmware-obico-update.cfg]" in the "moonraker.conf" file
 - Log file: ${OBICO_LOG_FILE}
 
-To remove Obico for Klipper, run:
+To remove Obico for RepRapFirmware, run:
 
 cd ~/reprapfirmware-obico
 ./install.sh -u

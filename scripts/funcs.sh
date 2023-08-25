@@ -43,7 +43,7 @@ brand() {
 welcome() {
   brand
   echo ""
-  print_header "> Obico for Klipper <"
+  print_header "> Obico for RepRapFirmware <"
   echo -n "${cyan}"
   array=("" "* AI-Powered Failure Detection" "* Free Remote Monitoring and Access " "* 25FPS High-Def Webcam Streaming " "* Free 4.9-Star Mobile App" "")
   print_centered_lines "${array[@]}"
