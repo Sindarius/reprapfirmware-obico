@@ -75,7 +75,7 @@ class SentryWrapper:
             return event
 
         sentry_sdk.init(
-            dsn='https://89fc4cf9318d46b1bfadc03c9d34577c@sentry.obico.io/8',
+            dsn='https://23bcebe8cf854649b2cca83255c94559@sentry.obico.io/11',
             default_integrations=False,
             integrations=[
                 ThreadingIntegration(propagate_hub=True), # Make sure context are propagated to sub-threads.
