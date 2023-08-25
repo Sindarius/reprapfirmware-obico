@@ -281,7 +281,7 @@ class App(object):
 
 #todo This is getitng busted when searching for the file.
     def find_obico_g_code_file_id(self, cur_status, file_metadata):
-        time.sleep(1)
+        time.sleep(0.5)
         file = cur_status.get('job', {}).get('file', {})
         basename = fix_rrf_filename(file.get('fileName',''))
         if basename == '':
@@ -350,7 +350,6 @@ class App(object):
                 # todo come up with a better way to check final result here.
                 _job = self.rrfconn.find_most_recent_job()  # lets get the final state of the job
                 _state = data['state']['status']
-                _logger.info(_job)
                 _cancelled = prev_state in [PrinterState.STATE_CANCELLING, PrinterState.EVENT_CANCELLED]
                 _logger.info(_cancelled)
                 if _state == 'cancelled':

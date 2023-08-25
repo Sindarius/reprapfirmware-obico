@@ -24,7 +24,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         self.on_event = on_event
         self.serial_connection : Optional[Serial] = None
         self.reloadSettings = True
-        self.heater_strings = [b'T0:', b'B:']
+        self.heater_strings = [b'T0:', b'B:', b'File opened']
         return
 
     def api_get(self, command, waitresponse= True):
@@ -41,7 +41,7 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
             while True:
                 data = self.serial_connection.readline()
                 #discard periodic heater messages
-                if all(s in data for s in self.heater_strings):
+                if any(s in data for s in self.heater_strings):
                     continue
                 if data != b'ok\n':  #data != b'' and data != b'\n':
                     result += data
@@ -51,10 +51,11 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
                 json_data = json.loads(result.decode()) #attempt to decode the results into json.
                 return json_data
             except:
-                _logger.info(result)
                 return result.decode()  # data likely a string return those results instead
+
         finally:
-            self.mutex.release()
+            if self.mutex.locked():
+                self.mutex.release()
 
     def api_upload(self, command, data):
         try:
@@ -170,9 +171,13 @@ class RepRapFirmware_Connection_Serial(RepRapFirmware_Connection_Base):
         for bedHeaterIdx in range(len(heat['bedHeaters'])):
             bed_heater = heat['bedHeaters'][bedHeaterIdx]
             if bed_heater != -1:
-                heater = HeaterModel(name=analog[bed_heater]['name'], type='bed', heater_idx= bed_heater, sensor_idx=int(bed_heater),
-                                     tool_idx=int(bedHeaterIdx), actual=0, target=0)
-                self.heaters.append(heater)
+                try:
+                    bed_name = analog[bed_heater].get('name', f'Bed {bedHeaterIdx}')
+                    heater = HeaterModel(name=bed_name, type='bed', heater_idx=bedHeaterIdx, sensor_idx=int(bed_heater),
+                                         tool_idx=int(bedHeaterIdx), actual=0, target=0)
+                    self.heaters.append(heater)
+                except:
+                    _logger.warning(f"Unable to process bed heater {bedHeaterIdx}")
 
         #load tool heaters
         for toolIdx in range(len(tools)):

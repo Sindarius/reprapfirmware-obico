@@ -52,9 +52,13 @@ class RepRapFirmware_Connection_HTTP(RepRapFirmware_Connection_Base):
         for bedHeaterIdx in range(len(heat['bedHeaters'])):
             bed_heater = heat['bedHeaters'][bedHeaterIdx]
             if bed_heater != -1:
-                heater = HeaterModel(name=analog[bed_heater]['name'], type='bed', heater_idx= bed_heater, sensor_idx=int(bed_heater),
-                                     tool_idx=int(bedHeaterIdx), actual=0, target=0)
-                self.heaters.append(heater)
+                try:
+                    bed_name = analog[bed_heater].get('name', f'Bed {bedHeaterIdx}')
+                    heater = HeaterModel(name=bed_name, type='bed', heater_idx= bedHeaterIdx, sensor_idx=int(bed_heater),
+                                         tool_idx=int(bedHeaterIdx), actual=0, target=0)
+                    self.heaters.append(heater)
+                except:
+                    _logger.warning(f"Unable to process bed heater {bedHeaterIdx}")
 
         #load tool heaters
         for toolIdx in range(len(tools)):
