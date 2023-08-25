@@ -176,7 +176,7 @@ class Config:
 
         self.reprapfirmware = RepRapFirmwareConfig(
             host=config.get('reprapfirmware', 'host', fallback='duet3'),
-            port=config.get('reprapfirmware', 'port', fallback=7125),
+            port=config.get('reprapfirmware', 'port', fallback=80),
             password=config.get('reprapfirmware', 'password', fallback='reprap'),
             connection_type=int(config.get('reprapfirmware', 'mode', fallback=0)),
             serial_port =config.get('reprapfirmware', 'serial_port', fallback='/dev/ttyACM0')

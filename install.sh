@@ -335,7 +335,7 @@ else
   debug MOONRAKER_PORT: "${MOONRAKER_PORT}"
 fi
 
-if [ -z "${SUFFIX}" -a "${MOONRAKER_PORT}" -ne "7125" ]; then
+if [ -z "${SUFFIX}" -a "${MOONRAKER_PORT}" -ne "80" ]; then
   SUFFIX="-${MOONRAKER_PORT}"
 fi
 debug SUFFIX: "${SUFFIX}"
