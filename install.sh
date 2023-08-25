@@ -61,11 +61,11 @@ EOF
 }
 
 prompt_for_settings() {
-  print_header " Moonraker Info"
+  print_header " RepRapFirmware Info"
 
 cat <<EOF
 
-We need info about your Moonraker. If you are not sure, just leave them as defaults.
+We need info about your RepRapFirmware Printer. If you are not sure, just leave them as defaults.
 
 EOF
 
@@ -313,7 +313,7 @@ fi
 if [ -n "${mr_host}" ] || [ -n "${mr_port}" ] || [ -n "${mr_config}" ] || [ -n "${log_path}" ]; then
 
   if ! { [ -n "${mr_host}" ] && [ -n "${mr_port}" ] && [ -n "${mr_config}" ] && [ -n "${log_path}" ]; }; then
-    usage "Please specify all Moonraker setting options. See usage below." && exit 1
+    usage "Please specify all RepRapFirmware setting options. See usage below." && exit 1
   else
     MOONRAKER_HOST="${mr_host}"
     MOONRAKER_PORT="${mr_port}"
