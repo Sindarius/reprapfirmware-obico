@@ -34,11 +34,10 @@ Global options:
           -d   Show debugging info
           -U   Update reprapfirmware-obico to the latest version
 
-Moonraker setting options (${yellow}if any of them are specified, all need to be specified${default}):
+RepRapFirmware setting options (${yellow}if any of them are specified, all need to be specified${default}):
           -n   The "name" that will be appended to the end of the system service name and log file. Useful only in multi-printer setup.
-          -H   Moonraker server hostname or ip address
-          -p   Moonraker server port
-          -C   Moonraker config file path
+          -H   RepRapFirmware printer hostname or ip address
+          -p   RepRapFirmware printer port
           -l   The directory for reprapfirmware-obico log files, which are rotated based on size.
           -S   The URL of the obico server to link the printer to, e.g., https://app.obico.io
 EOF
@@ -186,8 +185,7 @@ recreate_service() {
   sudo /bin/sh -c "cat > /etc/systemd/system/${OBICO_SERVICE_NAME}.service" <<EOF
 #Systemd service file for reprapfirmware-obico
 [Unit]
-Description=Obico for Moonraker
-After=network-online.target moonraker.service
+Description=Obico for RepRapFirmware
 
 [Install]
 WantedBy=multi-user.target
@@ -220,10 +218,6 @@ managed_services:
   ${OBICO_SERVICE_NAME}
 EOF
 
-  if ! grep -q "include reprapfirmware-obico-update.cfg" "${MOONRAKER_CONFIG_FILE}" ; then
-    echo "" >> "${MOONRAKER_CONFIG_FILE}"
-    echo "[include reprapfirmware-obico-update.cfg]" >> "${MOONRAKER_CONFIG_FILE}"
-	fi
 }
 
 update() {

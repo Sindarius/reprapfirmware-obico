@@ -69,8 +69,7 @@ You may need to update /dev/video0 to match camera device
 # Updating
 
     cd ~/reprapfirmware-obico
-    git pull
-    sudo systemctl restart reprapfirmware-obico
+    ./install.sh -U
 
 # Uninstall
 
