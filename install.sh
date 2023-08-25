@@ -87,6 +87,7 @@ ensure_deps() {
   PKGLIST="python3 python3-pip python3-virtualenv ffmpeg"
   sudo apt-get update --allow-releaseinfo-change
   sudo apt-get install --yes ${PKGLIST}
+  git pull
   ensure_venv
   debug Running... "${OBICO_ENV}"/bin/pip3 install -q -r "${OBICO_DIR}"/requirements.txt
   "${OBICO_ENV}"/bin/pip3 install -q -r "${OBICO_DIR}"/requirements.txt
