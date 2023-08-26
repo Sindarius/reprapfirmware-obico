@@ -35,6 +35,7 @@ While this plugin runs on a Raspberry Pi it does not require Duet Software Frame
     sudo make install
 
 # Installation of uStreamer (Alternative to Crowsnest)
+    cd ~
     git clone --depth=1 https://github.com/pikvm/ustreamer
 ---
     cd ustreamer
